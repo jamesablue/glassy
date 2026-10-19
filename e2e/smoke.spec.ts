@@ -1,8 +1,8 @@
 import { expect, test } from '@playwright/test';
-import { serveRecordedForecast } from './support/recorded-forecast';
+import { serveOffline } from './support/offline';
 
 test.beforeEach(async ({ page }) => {
-  await serveRecordedForecast(page);
+  await serveOffline(page);
 });
 
 test.describe('app shell', () => {
