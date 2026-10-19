@@ -1,7 +1,8 @@
 import { expect, type Page } from '@playwright/test';
 import { RECORDED_MORNING } from './clock';
+import { waitForForecast } from './glassy';
+import { OPEN_METEO } from './recorded-forecast';
 
-const OPEN_METEO = /^https:\/\/([a-z-]+\.)?open-meteo\.com\//;
 const HOUR_MS = 3_600_000;
 
 /**
@@ -47,7 +48,7 @@ function hasCachedForecast(page: Page): Promise<boolean> {
  */
 export async function showStaleForecast(page: Page): Promise<void> {
   await page.goto('/');
-  await expect(page.locator('glassy-spot-pin button')).toHaveCount(25);
+  await waitForForecast(page);
   await expect.poll(() => hasCachedForecast(page)).toBe(true);
 
   await page.clock.setSystemTime(new Date(RECORDED_MORNING.getTime() + 2 * HOUR_MS));

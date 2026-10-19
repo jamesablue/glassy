@@ -4,7 +4,8 @@ import { join } from 'node:path';
 import manifest from '../../src/testing/fixtures/raw/manifest.json';
 
 const RAW_FIXTURES = join(__dirname, '../../src/testing/fixtures/raw');
-const OPEN_METEO = /^https:\/\/([a-z-]+\.)?open-meteo\.com\//;
+/** Open-Meteo's forecast and marine APIs. */
+export const OPEN_METEO = /^https:\/\/([a-z-]+\.)?open-meteo\.com\//;
 
 /** Recorded response bodies by the exact URL the app requests (see `manifest.json`). */
 const RECORDED = new Map(

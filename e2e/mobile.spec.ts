@@ -1,11 +1,7 @@
-import { expect, test } from '@playwright/test';
-import { menuButton, ranking, rankingHeader, rankingRow } from './support/glassy';
-import { serveOffline } from './support/offline';
+import { menuButton, ranking, rankingHeader, rankingRow, SPOT_COUNT } from './support/glassy';
+import { expect, test } from './support/test';
 
-test.beforeEach(async ({ page, isMobile }) => {
-  test.skip(!isMobile, 'The phone layout');
-  await serveOffline(page);
-});
+test.skip(({ isMobile }) => !isMobile, 'The phone layout');
 
 test.describe('phone layout', () => {
   test('starts with the ranking folded, so the map shows, and unfolds it on request', async ({
@@ -19,7 +15,7 @@ test.describe('phone layout', () => {
     await rankingHeader(page).click();
     await expect(rankingHeader(page)).toHaveAttribute('aria-expanded', 'true');
     await expect(ranking(page)).toBeVisible();
-    await expect(ranking(page).getByRole('listitem')).toHaveCount(25);
+    await expect(ranking(page).getByRole('listitem')).toHaveCount(SPOT_COUNT);
     await expect(rankingRow(page, 'Pōkaʻi Bay')).toBeInViewport();
 
     await rankingHeader(page).click();

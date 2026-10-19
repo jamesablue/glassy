@@ -1,4 +1,3 @@
-import { expect, test } from '@playwright/test';
 import { RECORDED_MORNING_HOUR } from './support/clock';
 import {
   clickHour,
@@ -8,11 +7,7 @@ import {
   showRanking,
   timeline,
 } from './support/glassy';
-import { serveOffline } from './support/offline';
-
-test.beforeEach(async ({ page }) => {
-  await serveOffline(page);
-});
+import { expect, test } from './support/test';
 
 test.describe('timeline', () => {
   test('opens on the current hour with its ranking', async ({ page }) => {

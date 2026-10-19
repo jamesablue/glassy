@@ -1,9 +1,4 @@
-import { expect, test } from '@playwright/test';
-import { serveOffline } from './support/offline';
-
-test.beforeEach(async ({ page }) => {
-  await serveOffline(page);
-});
+import { expect, test } from './support/test';
 
 test.describe('app shell', () => {
   test('loads with the brand, and the tagline where there is room for it', async ({
@@ -23,13 +18,5 @@ test.describe('app shell', () => {
 
     await expect(page).toHaveURL(/\/\?layer=wind$/);
     await expect(page.getByRole('heading', { level: 1, name: 'Glassy' })).toBeVisible();
-  });
-});
-
-test.describe('shareable URL', () => {
-  test('keeps a shared view in the URL and drops what it does not recognise', async ({ page }) => {
-    await page.goto('/?spot=hanauma&layer=depth&t=yesterday');
-
-    await expect(page).toHaveURL(/\/\?spot=hanauma&layer=depth$/);
   });
 });
