@@ -1,0 +1,36 @@
+:host {
+  display: block;
+  min-height: 100dvh;
+}
+
+.shell {
+  display: grid;
+  place-items: center;
+  min-height: 100dvh;
+  padding: 16px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.logo {
+  width: 48px;
+  height: 48px;
+  flex: none;
+}
+
+.brand-name {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+}
+
+.brand-sub {
+  margin: 2px 0 0;
+  color: var(--muted);
+  font-size: 14px;
+}
