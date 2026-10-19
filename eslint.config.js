@@ -20,8 +20,11 @@ const LAYER_IMPORTS = {
 };
 const LAYERS = Object.keys(LAYER_IMPORTS);
 
-/** @param {keyof typeof LAYER_IMPORTS} layer */
-function layerBoundary(layer) {
+/**
+ * The import patterns a layer may not use.
+ * @param {keyof typeof LAYER_IMPORTS} layer
+ */
+function layerPatterns(layer) {
   const allowed = LAYER_IMPORTS[layer];
   const forbidden = LAYERS.filter((other) => other !== layer && !allowed.includes(other));
   const rule = allowed.length
@@ -46,14 +49,43 @@ function layerBoundary(layer) {
     });
   }
 
+  return patterns;
+}
+
+/** @param {keyof typeof LAYER_IMPORTS} layer */
+function layerBoundary(layer) {
   return {
     name: `glassy/layer-boundary/${layer}`,
     files: [`src/app/${layer}/**/*.ts`],
     rules: {
-      'no-restricted-imports': ['error', { patterns }],
+      'no-restricted-imports': ['error', { patterns: layerPatterns(layer) }],
     },
   };
 }
+
+/**
+ * The map's canvas renderers take plain data and callbacks, so they can move into a Web Worker. This
+ * keeps the map layer's boundary and also rules out every package (Angular, Leaflet, RxJS).
+ */
+const frameworkFreeRenderers = {
+  name: 'glassy/framework-free/map-renderers',
+  files: ['src/app/map/renderers/**/*.ts'],
+  rules: {
+    'no-restricted-imports': [
+      'error',
+      {
+        patterns: [
+          ...layerPatterns('map'),
+          {
+            regex: '^(?!\\.{1,2}/|vitest$)',
+            message:
+              'map/renderers/ is framework-free (no @angular/*, leaflet, rxjs or other packages), so it can run in a Web Worker.',
+          },
+        ],
+      },
+    ],
+  },
+};
 
 module.exports = defineConfig([
   globalIgnores([
@@ -100,5 +132,7 @@ module.exports = defineConfig([
     rules: {},
   },
   ...LAYERS.map((layer) => layerBoundary(/** @type {keyof typeof LAYER_IMPORTS} */ (layer))),
+  // After the layer boundaries: for these files it replaces the map's rule with a stricter one.
+  frameworkFreeRenderers,
   prettier,
 ]);
