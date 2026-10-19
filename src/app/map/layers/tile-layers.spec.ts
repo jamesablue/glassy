@@ -2,11 +2,16 @@ import { Component, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import * as L from 'leaflet';
 import { FAKE_TILE_SOURCES, renderMap } from '../../../testing/map-harness';
+import { FakeClock } from '../../../testing/state-providers';
+import { AppNotices } from '../../core/app-notices';
+import { CLOCK } from '../../core/clock';
 import { TERRAIN_TILE_SOURCES } from '../../core/terrain-tile-sources';
 import { MapHostComponent } from '../map-host/map-host.component';
 import { BasemapLayerComponent, ESRI_BASE_URL, ESRI_LABELS_URL } from './basemap-layer.component';
 import { DepthLayerComponent } from './depth-layer.component';
+import { BLANK_TILE_URL, GuardedTileLayer } from './guarded-tile-layer';
 import { NoaaExportTileLayer } from './noaa-export-tile-layer';
+import { TILE_FAILURES_BEFORE_PAUSE, TILE_PAUSE_MS, TileOutage } from './tile-outage';
 import { TerrainLayerComponent, type TerrainMode } from './terrain-layer.component';
 
 @Component({
@@ -41,9 +46,15 @@ function urlTemplate(layer: L.TileLayer): string {
 }
 
 describe('tile layers', () => {
+  let clock: FakeClock;
+
   beforeEach(() => {
+    clock = new FakeClock(Date.UTC(2026, 9, 18, 18));
     TestBed.configureTestingModule({
-      providers: [{ provide: TERRAIN_TILE_SOURCES, useValue: FAKE_TILE_SOURCES }],
+      providers: [
+        { provide: TERRAIN_TILE_SOURCES, useValue: FAKE_TILE_SOURCES },
+        { provide: CLOCK, useValue: clock },
+      ],
     });
   });
 
@@ -111,6 +122,55 @@ describe('tile layers', () => {
     });
   });
 
+  describe('when a tile source stops answering', () => {
+    const tile = Object.assign(L.point(3, 4), { z: 5 });
+    /** Leaflet's report of failed tiles, as the browser would trigger it. */
+    const failTiles = (layer: L.TileLayer, count: number): void => {
+      for (let i = 0; i < count; i++) layer.fire('tileerror', { tile: new Image(), coords: tile });
+    };
+
+    it('says once that map tiles are unavailable, however many sources fail', async () => {
+      const { map } = await setup();
+      const notices = TestBed.inject(AppNotices);
+      const [base, labels] = tileLayers(map);
+      if (!base || !labels) throw new Error('No basemap');
+
+      failTiles(base, TILE_FAILURES_BEFORE_PAUSE - 1);
+      expect(notices.latest()).toBeNull();
+      failTiles(base, 1);
+      expect(notices.latest()).toEqual({ kind: 'map-tiles-unavailable', id: 1 });
+
+      failTiles(labels, TILE_FAILURES_BEFORE_PAUSE);
+      failTiles(noaa(map, 'land') as L.TileLayer, TILE_FAILURES_BEFORE_PAUSE);
+      expect(notices.latest()?.id).toBe(1);
+    });
+
+    it('stops asking a source that is down, then tries it again', async () => {
+      const { map } = await setup();
+      const land = noaa(map, 'land');
+      if (!land) throw new Error('No land layer');
+
+      failTiles(land, TILE_FAILURES_BEFORE_PAUSE);
+      expect(land.getTileUrl(tile)).toBe(BLANK_TILE_URL);
+
+      clock.time += TILE_PAUSE_MS;
+      expect(land.getTileUrl(tile)).toBe('land:5/3/4@1');
+    });
+
+    it('keeps asking a source whose tiles load', async () => {
+      const { map } = await setup();
+      const land = noaa(map, 'land');
+      if (!land) throw new Error('No land layer');
+      const loaded = new Image();
+      loaded.src = 'land:5/3/4@1';
+
+      failTiles(land, TILE_FAILURES_BEFORE_PAUSE - 1);
+      land.fire('tileload', { tile: loaded, coords: tile });
+      failTiles(land, TILE_FAILURES_BEFORE_PAUSE - 1);
+      expect(land.getTileUrl(tile)).toBe('land:5/3/4@1');
+    });
+  });
+
   it('takes every tile layer off the map when the layers are destroyed', async () => {
     const { fixture, map, host } = await setup();
     host.depthVisible.set(true);
@@ -144,5 +204,32 @@ describe('NoaaExportTileLayer', () => {
   it('keeps extra tiles around the view because they are slow to render', () => {
     const layer = new NoaaExportTileLayer(() => '', { pane: 'depth' });
     expect(layer.options).toMatchObject({ maxZoom: 15, keepBuffer: 4, pane: 'depth' });
+  });
+});
+
+describe('GuardedTileLayer', () => {
+  const tile = Object.assign(L.point(1, 2), { z: 3 });
+
+  it('is a plain tile layer without an outage to report to', () => {
+    const layer = new GuardedTileLayer('https://tiles.example/{z}/{x}/{y}.png');
+    for (let i = 0; i < TILE_FAILURES_BEFORE_PAUSE; i++) {
+      layer.fire('tileerror', { tile: new Image(), coords: tile });
+    }
+    // Off the map Leaflet has no zoom for the URL; the tile still comes from the source.
+    expect(layer.getTileUrl(tile)).toMatch(/^https:\/\/tiles\.example\/.+\/1\/2\.png$/);
+  });
+
+  it('does not count a blank tile loading as the source answering', () => {
+    const outage = new TileOutage(
+      () => undefined,
+      () => 0,
+    );
+    const loaded = vi.spyOn(outage, 'loaded');
+    const layer = new GuardedTileLayer('https://tiles.example/{z}/{x}/{y}.png', {}, outage);
+    const blank = new Image();
+    blank.src = BLANK_TILE_URL;
+
+    layer.fire('tileload', { tile: blank, coords: tile });
+    expect(loaded).not.toHaveBeenCalled();
   });
 });
