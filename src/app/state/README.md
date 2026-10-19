@@ -5,14 +5,19 @@ service with private writable signals, a read-only public surface (`asReadonly()
 methods named after what the user does. RxJS appears only where the stores meet the repository
 (`rxResource`) and nothing here holds state in a `Subject`.
 
-| Store             | Owns (writable)                                                       | Derives (`computed`)                                                                                     | Read by                                                        |
-| ----------------- | --------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
-| `ForecastStore`   | the load request; the last loaded `ForecastResult`                    | `status`, `bundle`, `fetchedAt`, `source`, `error`, `isRateLimited`                                      | every other store; loading overlay and notices                 |
-| `SettingsStore`   | `Preferences`: units and map choices, saved to localStorage           | `units`, `mapPreferences`                                                                                | `MapUiStore`, `ConditionsStore`; units popover, unit pipes     |
-| `MapUiStore`      | selected spot, region filter, inspected point                         | `activeLayer`, `particlesOn`, `spotsOn` (through `SettingsStore`), `selectedSpot`, `isDepth`, field keys | `ConditionsStore`, `UrlStateSync`; map layers, controls, panel |
-| `TimelineStore`   | selected hour, playback                                               | `hourCount`, `nowHour`, `nowPosition`, `todayKey`, `selectedTime`, `days`, `nights`                      | `ConditionsStore`, `UrlStateSync`; timeline, map layers        |
-| `ConditionsStore` | nothing                                                               | `scoreMatrix`, `rankedSpots`, `spotPins`, `selectedSpotDetail`, `legendSpec`                             | ranking, detail panel and chart, spot markers, legend          |
-| `UrlStateSync`    | a `t` waiting for the forecast; whether the opening URL has been read | `?layer=&spot=&t=` in both directions (see its TSDoc for the format and rules)                           | started from `app.config.ts`                                   |
+| Store                  | Owns (writable)                                                       | Derives (`computed`)                                                                                     | Read by                                                        |
+| ---------------------- | --------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| `ForecastStore`        | the load request; the last loaded `ForecastResult`                    | `status`, `bundle`, `fetchedAt`, `source`, `error`, `isRateLimited`                                      | every other store; loading overlay and notices                 |
+| `SettingsStore`        | `Preferences`: units and map choices, saved to localStorage           | `units`, `mapPreferences`                                                                                | `MapUiStore`, `ConditionsStore`; units popover, unit pipes     |
+| `MapUiStore`           | selected spot, region filter, inspected point                         | `activeLayer`, `particlesOn`, `spotsOn` (through `SettingsStore`), `selectedSpot`, `isDepth`, field keys | `ConditionsStore`, `UrlStateSync`; map layers, controls, panel |
+| `TimelineStore`        | selected hour, playback                                               | `hourCount`, `nowHour`, `nowPosition`, `todayKey`, `selectedTime`, `days`, `nights`                      | `ConditionsStore`, `UrlStateSync`; timeline, map layers        |
+| `ConditionsStore`      | nothing                                                               | `scoreMatrix`, `rankedSpots`, `spotPins`, `selectedSpotDetail`, `legendSpec`                             | ranking, detail panel and chart, spot markers, legend          |
+| `UrlStateSync`         | a `t` waiting for the forecast; whether the opening URL has been read | `?layer=&spot=&t=` in both directions (see its TSDoc for the format and rules)                           | started from `app.config.ts`                                   |
+| `PointInspectionStore` | the elevation lookup for the inspected point (`rxResource`)           | `elevation` (loading, ready, no data, error), `forecast` (sampled for the selected hour), `reading`      | the map's point inspector                                      |
+
+`PointInspectionStore` exists because `map/` may not import `data/`: the map asks the store for the depth at a
+tapped point, and the store asks `BathymetryClient`. Keying the lookup on the point means tapping elsewhere
+cancels the previous lookup, so a late answer never lands in the wrong readout.
 
 ```mermaid
 graph LR
@@ -26,6 +31,10 @@ graph LR
   url[UrlStateSync] <--> mapUi
   url <--> timeline
   router[(Router)] <--> url
+  mapUi --> inspection[PointInspectionStore]
+  forecast --> inspection
+  timeline --> inspection
+  bathymetry[(BathymetryClient)] --> inspection
 ```
 
 **Rules**
