@@ -11,6 +11,9 @@ App-wide wiring: providers, configuration and injection tokens.
   default, so every app or test states its environment
 - `SPOT_CATALOG`: the spot list, defaulting to Oahu, so other islands can plug in later
 - `CLOCK`: the current time, the system clock unless replaced, so tests can fix "now"
+- `TERRAIN_TILE_SOURCES`: where the map's land and depth tiles come from. `map/` may not import `data/`, so the
+  map depends on this interface and `data/noaa/` implements it (`provideNoaaTileSources()` in `app.config.ts`).
+  Like `GLASSY_CONFIG` it has no default
 - Later: other app-wide provider helpers and the `ErrorHandler`
 
 **May import:** `domain/` (tokens are typed with domain models).
