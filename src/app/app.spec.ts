@@ -47,10 +47,31 @@ describe('App', () => {
   const pins = (element: HTMLElement): NodeListOf<HTMLButtonElement> =>
     element.querySelectorAll('glassy-spot-pin button');
 
-  it('renders the brand name and tagline', async () => {
+  it('floats the feature shell over the map', async () => {
     const { element } = await setup();
+    expect(element.querySelector('glassy-map + glassy-app-shell')).not.toBeNull();
     expect(element.querySelector('h1')?.textContent).toBe('Glassy');
-    expect(element.querySelector('.brand-sub')?.textContent).toBe('Oahu snorkel forecast');
+    expect(element.querySelector('.tagline')?.textContent).toBe('Oahu snorkel forecast');
+    expect(element.querySelectorAll('glassy-spot-ranking-row')).toHaveLength(OAHU_SPOTS.length);
+  });
+
+  it('highlights a spot’s pin and row together', async () => {
+    const { fixture, element } = await setup();
+    const kuilimaRow = Array.from(element.querySelectorAll('glassy-spot-ranking-row .row')).find(
+      (row) => row.querySelector('.name')?.textContent === 'Kuilima Cove (Turtle Bay)',
+    );
+    kuilimaRow?.dispatchEvent(new MouseEvent('mouseenter'));
+    await fixture.whenStable();
+    const hovered = Array.from(element.querySelectorAll('glassy-spot-pin .pin.hovered'));
+    expect(hovered.map((pin) => pin.getAttribute('aria-label'))).toEqual([
+      expect.stringMatching(/^Kuilima Cove/),
+    ]);
+
+    kuilimaRow?.dispatchEvent(new MouseEvent('mouseleave'));
+    pins(element)[0]?.dispatchEvent(new MouseEvent('mouseenter'));
+    await fixture.whenStable();
+    expect(TestBed.inject(MapUiStore).hoveredSpotId()).toBe(OAHU_SPOTS[0]?.id);
+    expect(element.querySelectorAll('glassy-spot-ranking-row .row.hovered')).toHaveLength(1);
   });
 
   it('draws the active layer with its particles and a pin for every spot', async () => {
