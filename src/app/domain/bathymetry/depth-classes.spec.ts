@@ -1,4 +1,4 @@
-import { inkFor } from '../color/lut';
+import { inkFor } from '../color/contrast';
 import { DEPTH_BINS } from './depth-classes';
 
 describe('DEPTH_BINS', () => {

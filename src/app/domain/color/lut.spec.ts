@@ -1,4 +1,4 @@
-import { buildLut, cssRgb, inkFor, LUT_SIZE } from './lut';
+import { buildLut, cssRgb, LUT_SIZE } from './lut';
 import { colorAt, PALETTES } from './palettes';
 
 describe('buildLut', () => {
@@ -33,24 +33,5 @@ describe('buildLut', () => {
 describe('cssRgb', () => {
   it('formats a CSS rgb() colour', () => {
     expect(cssRgb([12, 34, 255])).toBe('rgb(12,34,255)');
-  });
-});
-
-describe('inkFor', () => {
-  it('uses dark text on light backgrounds', () => {
-    expect(inkFor([255, 255, 255])).toBe('dark');
-    expect(inkFor([255, 255, 0])).toBe('dark');
-    expect(inkFor([166, 166, 166])).toBe('dark');
-  });
-
-  it('uses light text on dark backgrounds', () => {
-    expect(inkFor([0, 0, 0])).toBe('light');
-    expect(inkFor([164, 164, 164])).toBe('light');
-  });
-
-  it('weights green far above blue', () => {
-    expect(inkFor([0, 255, 0])).toBe('light');
-    expect(inkFor([80, 255, 80])).toBe('dark');
-    expect(inkFor([80, 80, 255])).toBe('light');
   });
 });

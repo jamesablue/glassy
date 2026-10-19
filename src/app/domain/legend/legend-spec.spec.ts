@@ -1,6 +1,6 @@
-import { inkFor } from '../color/lut';
+import { contrastRatio, INK_COLORS, inkFor, mixRgb } from '../color/contrast';
 import { colorAt, PALETTES } from '../color/palettes';
-import type { UnitSettings } from '../models';
+import { LAYER_IDS, type UnitSettings } from '../models';
 import { legendSpec } from './legend-spec';
 import { LEGEND_TICKS } from './legend-ticks';
 
@@ -53,9 +53,23 @@ describe('legendSpec', () => {
     expect(legend.cells[4]?.from).toEqual(colorAt(PALETTES.period, 10));
   });
 
-  it('picks readable text for every cell', () => {
+  it('picks the text colour that reads best across the middle of each cell', () => {
     for (const cell of legendSpec('waves', metric).cells) {
-      expect(cell.ink).toBe(inkFor(cell.from));
+      const middle = [0.3, 0.5, 0.7].map((share) => mixRgb(cell.from, cell.to, share));
+      expect(cell.ink).toBe(inkFor(...middle));
+    }
+  });
+
+  it('keeps every label at about 4.4:1 or better under the label, in every layer and unit', () => {
+    for (const layer of LAYER_IDS) {
+      for (const units of [metric, imperial]) {
+        for (const cell of legendSpec(layer, units).cells) {
+          const ink = INK_COLORS[cell.ink];
+          const middle = [0.3, 0.5, 0.7].map((share) => mixRgb(cell.from, cell.to, share));
+          const lowest = Math.min(...middle.map((colour) => contrastRatio(ink, colour)));
+          expect(lowest, `${layer} ${cell.label}`).toBeGreaterThanOrEqual(4.4);
+        }
+      }
     }
   });
 
