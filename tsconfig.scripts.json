@@ -1,0 +1,8 @@
+/* Type checking for the Node scripts in scripts/. They run with tsx. */
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": ["node"]
+  },
+  "include": ["scripts/**/*.ts"]
+}

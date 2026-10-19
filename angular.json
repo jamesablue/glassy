@@ -101,6 +101,7 @@
               "src/**/*.ts",
               "src/**/*.html",
               "e2e/**/*.ts",
+              "scripts/**/*.ts",
               "playwright.config.ts"
             ]
           }
