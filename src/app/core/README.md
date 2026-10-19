@@ -10,6 +10,7 @@ App-wide wiring: providers, configuration and injection tokens.
 - `GLASSY_CONFIG` and `provideGlassyConfig(overrides?)`: the config as an injection token, with no implicit
   default, so every app or test states its environment
 - `SPOT_CATALOG`: the spot list, defaulting to Oahu, so other islands can plug in later
+- `CLOCK`: the current time, the system clock unless replaced, so tests can fix "now"
 - Later: other app-wide provider helpers and the `ErrorHandler`
 
 **May import:** `domain/` (tokens are typed with domain models).
