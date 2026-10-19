@@ -1,0 +1,175 @@
+# Publishes the production build to the S3 bucket and CloudFront distribution
+# created by infra/ (GlassyStaticSite stack). Runs only when started by hand.
+# One-time setup: infra/README.md.
+name: Deploy to AWS
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Branch, tag or commit to deploy. Leave empty for the branch picked above.
+        required: false
+        type: string
+        default: ''
+
+# One deploy at a time, and never cancel one halfway through an upload.
+concurrency:
+  group: deploy-aws-production
+  cancel-in-progress: false
+
+# id-token lets the job request a GitHub OIDC token, which AWS STS exchanges
+# for short-lived credentials. No AWS keys are stored in the repository.
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  NG_CLI_ANALYTICS: 'false'
+
+jobs:
+  deploy:
+    name: Build and publish to S3 + CloudFront
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # The deploy role only trusts tokens from this environment
+    # (repo:jamesablue/glassy:environment:production). Its protection rules
+    # decide who may deploy and from which branches.
+    environment:
+      name: production
+      url: ${{ steps.site.outputs.url }}
+    env:
+      S3_BUCKET: ${{ vars.S3_BUCKET }}
+      CLOUDFRONT_DISTRIBUTION_ID: ${{ vars.CLOUDFRONT_DISTRIBUTION_ID }}
+      BUILD_DIR: dist/glassy/browser
+    steps:
+      - name: Check repository variables
+        env:
+          AWS_ROLE_ARN: ${{ vars.AWS_ROLE_ARN }}
+          AWS_REGION: ${{ vars.AWS_REGION }}
+        run: |
+          missing=()
+          for name in AWS_ROLE_ARN AWS_REGION S3_BUCKET CLOUDFRONT_DISTRIBUTION_ID; do
+            if [ -z "${!name}" ]; then
+              missing+=("$name")
+            fi
+          done
+          if [ "${#missing[@]}" -gt 0 ]; then
+            echo "::error title=Missing repository variables::Set ${missing[*]} in Settings > Secrets and variables > Actions > Variables. The values are outputs of the GlassyStaticSite stack; see infra/README.md."
+            exit 1
+          fi
+
+      - name: Check out
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref }}
+          persist-credentials: false
+
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build (production, base href /)
+        run: npm run build -- --configuration production
+
+      # CloudFront sends "script-src 'self'", which blocks inline scripts and
+      # inline event handlers. Angular's critical-CSS inlining adds one, which
+      # would leave the global stylesheet switched off, so it is disabled for
+      # the production configuration. This check keeps it that way.
+      - name: Check index.html works with the Content-Security-Policy
+        run: |
+          html="$BUILD_DIR/index.html"
+          inline_scripts=$(grep -Eo '<script[^>]*>' "$html" | grep -v ' src=' || true)
+          inline_handlers=$(grep -Eo '<[a-zA-Z][^>]*[[:space:]]on[a-z]+=' "$html" || true)
+          if [ -n "$inline_scripts$inline_handlers" ]; then
+            echo "::error file=$html::index.html has inline script that the Content-Security-Policy blocks. Keep optimization.styles.inlineCritical off in the production configuration in angular.json."
+            printf '%s\n' "$inline_scripts" "$inline_handlers"
+            exit 1
+          fi
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+          role-session-name: glassy-deploy-${{ github.run_id }}
+
+      # Three uploads, one per cache lifetime. Each sync's --delete prunes files
+      # from earlier builds, but only among the files that sync's filters
+      # select, so no pass removes another pass's files.
+      #
+      # 1. Bundles. With outputHashing=all every .js and .css file (and every
+      #    file under media/) has a content hash in its name, so a given name
+      #    never changes and can be cached for a year.
+      - name: Upload hashed bundles
+        run: >-
+          aws s3 sync "$BUILD_DIR" "s3://$S3_BUCKET"
+          --delete
+          --exclude "*"
+          --include "*.js"
+          --include "*.css"
+          --include "media/*"
+          --cache-control "public,max-age=31536000,immutable"
+          --no-progress
+
+      # 2. Files copied from public/ (favicon and friends). They keep their
+      #    names between builds, so they get a short lifetime instead.
+      - name: Upload static files
+        run: >-
+          aws s3 sync "$BUILD_DIR" "s3://$S3_BUCKET"
+          --delete
+          --exclude index.html
+          --exclude "*.js"
+          --exclude "*.css"
+          --exclude "media/*"
+          --cache-control "public,max-age=3600"
+          --no-progress
+
+      # 3. index.html last, so it never points at bundles that are not uploaded
+      #    yet. no-cache makes browsers revalidate it on every visit.
+      - name: Upload index.html
+        run: >-
+          aws s3 cp "$BUILD_DIR/index.html" "s3://$S3_BUCKET/index.html"
+          --cache-control "no-cache"
+          --no-progress
+
+      # Requests for "/" are cached under their own key, so clear both paths.
+      - name: Invalidate index.html in CloudFront
+        id: invalidation
+        run: |
+          id=$(aws cloudfront create-invalidation \
+            --distribution-id "$CLOUDFRONT_DISTRIBUTION_ID" \
+            --paths "/" "/index.html" \
+            --query Invalidation.Id --output text)
+          echo "id=$id" >> "$GITHUB_OUTPUT"
+
+      - name: Write job summary
+        id: site
+        env:
+          INVALIDATION_ID: ${{ steps.invalidation.outputs.id }}
+        run: |
+          names=$(aws cloudfront get-distribution \
+            --id "$CLOUDFRONT_DISTRIBUTION_ID" \
+            --query '[Distribution.DomainName, Distribution.DistributionConfig.Aliases.Items[0]]' \
+            --output text)
+          read -r domain alias <<< "$names"
+          host="$domain"
+          if [ -n "$alias" ] && [ "$alias" != "None" ]; then
+            host="$alias"
+          fi
+          url="https://$host/"
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          {
+            echo "### Deployed to AWS"
+            echo ""
+            echo "| | |"
+            echo "| --- | --- |"
+            echo "| Site | $url |"
+            echo "| Commit | \`$(git rev-parse --short HEAD)\` |"
+            echo "| Bucket | \`s3://$S3_BUCKET\` |"
+            echo "| Distribution | \`$CLOUDFRONT_DISTRIBUTION_ID\` (invalidation \`$INVALIDATION_ID\`) |"
+          } >> "$GITHUB_STEP_SUMMARY"
