@@ -7,16 +7,16 @@ through `input()`s or pipe arguments, so it renders the same wherever it is used
 
 **`ui/`**
 
-| Component                   | Selector                   | What it is                                                     |
-| --------------------------- | -------------------------- | -------------------------------------------------------------- |
-| `IconComponent`             | `glassy-icon`              | a line icon from the inline SVG set in `icons.ts`, decorative  |
-| `DirectionArrowComponent`   | `glassy-direction-arrow`   | points the way wind or waves travel: the "from" bearing + 180° |
-| `RatingBadgeComponent`      | `glassy-rating-badge`      | a rating's name on its colour                                  |
-| `ScorePillComponent`        | `glassy-score-pill`        | a score over its rating, read as "score 7.4 of 10, Good"       |
-| `PanelComponent`            | `glassy-panel`             | the dark, translucent card the floating panels are built from  |
-| `PopoverComponent`          | `glassy-popover`           | a native `popover="auto"` card that knows when it is open      |
-| `SegmentedControlComponent` | `glassy-segmented-control` | joined options, one selected                                   |
-| `ChipGroupComponent`        | `glassy-chip-group`        | wrapping pill options, one selected                            |
+| Component                   | Selector                   | What it is                                                                 |
+| --------------------------- | -------------------------- | -------------------------------------------------------------------------- |
+| `IconComponent`             | `glassy-icon`              | a line icon from the inline SVG set in `icons.ts`, decorative              |
+| `DirectionArrowComponent`   | `glassy-direction-arrow`   | points the way wind or waves travel: the "from" bearing + 180°             |
+| `RatingBadgeComponent`      | `glassy-rating-badge`      | a rating's name on its colour                                              |
+| `ScorePillComponent`        | `glassy-score-pill`        | a score over its rating, read as "score 7.4 of 10, Good"                   |
+| `PanelComponent`            | `glassy-panel`             | the dark, translucent card the floating panels are built from              |
+| `PopoverComponent`          | `glassy-popover`           | a native `popover="auto"` card; knows when it is open, starts focus inside |
+| `SegmentedControlComponent` | `glassy-segmented-control` | joined options, one selected                                               |
+| `ChipGroupComponent`        | `glassy-chip-group`        | wrapping pill options, one selected                                        |
 
 The icons (wind, waves, swell, period, depth, particles, spots, units, about, play, pause, back,
 chevron) draw in `currentColor`, so they take the colour of the control around them.

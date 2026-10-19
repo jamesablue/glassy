@@ -1,3 +1,6 @@
+<!-- The panels come first, so Tab goes brand, panel, menu, timeline and then the map. -->
+<glassy-app-shell />
+
 <glassy-map (mapClick)="inspect($event)">
   <glassy-basemap-layer />
   <glassy-terrain-layer [mode]="surfaceMode()" />
@@ -25,5 +28,3 @@
   }
   <glassy-point-inspector />
 </glassy-map>
-
-<glassy-app-shell />

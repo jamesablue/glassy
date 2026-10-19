@@ -63,3 +63,12 @@
     min-width: 0;
   }
 }
+
+// The narrowest phones (or 400% zoom): twelve depth bands still fit, labels included.
+@media (max-width: 400px) {
+  .bar.classes li {
+    min-width: 0;
+    font-size: 9.5px;
+    letter-spacing: -0.2px;
+  }
+}

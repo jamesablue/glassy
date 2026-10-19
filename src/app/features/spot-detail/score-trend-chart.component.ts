@@ -1,9 +1,10 @@
 import { Component, computed, input, output } from '@angular/core';
+import { clamp } from '../../domain/math';
 import type { HeightUnit } from '../../domain/models';
 import { HeightPipe, HstTimePipe, SurfRangePipe } from '../../shared/pipes';
 import type { ScoreTrendPoint } from '../../state';
-import { hourAtOffset } from '../timeline/timeline-geometry';
-import { dailySummary, TREND_CHART, trendGeometry } from './score-trend';
+import { hourAtOffset, hourForKey } from '../timeline/timeline-geometry';
+import { dailySummary, TREND_CHART, trendGeometry, trendValueText } from './score-trend';
 
 let nextId = 0;
 
@@ -12,9 +13,10 @@ let nextId = 0;
  * at night, over a darker night band), the surf line, day separators and labels, and a marker on
  * the selected hour.
  *
- * Clicking or dragging across it picks an hour (`hourSelect`), a pointer shortcut for the timeline,
- * which is the keyboard-accessible way to do the same. Screen readers get the chart's name and
- * description, and a day-by-day summary table in place of the bars.
+ * It is a slider over the hours, like the timeline it moves: clicking or dragging across it picks
+ * an hour (`hourSelect`), and so do the arrow keys (Page Up and Page Down move a day, Home and End
+ * go to the ends). Screen readers hear each hour's score, rating and surf as the slider's value,
+ * then a description, and get a day-by-day summary table in place of the bars.
  */
 @Component({
   selector: 'glassy-score-trend-chart',
@@ -31,9 +33,7 @@ export class ScoreTrendChartComponent {
   readonly hourSelect = output<number>();
 
   protected readonly chart = TREND_CHART;
-  protected readonly titleId = `score-trend-title-${nextId}`;
   protected readonly descriptionId = `score-trend-description-${nextId++}`;
-  protected readonly labelledBy = `${this.titleId} ${this.descriptionId}`;
 
   protected readonly geometry = computed(() => trendGeometry(this.points()));
   protected readonly viewBox = computed(
@@ -42,6 +42,11 @@ export class ScoreTrendChartComponent {
   /** Day separators: the start of every day but the first. */
   protected readonly separators = computed(() => this.geometry().days.slice(1));
   protected readonly markerX = computed(() => this.selectedHour() + 0.5);
+  protected readonly maxHour = computed(() => Math.max(this.points().length - 1, 0));
+  /** The selected hour in words, for example "Mon 12 PM: score 7.4, Good; surf 2–3 ft". */
+  protected readonly valueText = computed(() =>
+    trendValueText(this.points()[this.selectedHour()], this.heightUnit()),
+  );
   protected readonly summary = computed(() =>
     dailySummary(this.points()).map((day) => ({
       ...day,
@@ -65,6 +70,16 @@ export class ScoreTrendChartComponent {
 
   protected onPointerEnd(): void {
     this.dragging = false;
+  }
+
+  protected onKeydown(event: KeyboardEvent): void {
+    const count = this.points().length;
+    const target = hourForKey(event.key, this.selectedHour(), count);
+    if (target === null || count === 0) return;
+    // Handled here, so the app-wide arrow-key shortcuts leave it alone.
+    event.preventDefault();
+    const hour = clamp(target, 0, count - 1);
+    if (hour !== this.selectedHour()) this.hourSelect.emit(hour);
   }
 
   private pick(event: PointerEvent, plot: HTMLElement): void {

@@ -4,8 +4,9 @@ import type { LegendSpec } from '../../domain/legend';
 
 /**
  * The colour key for the active layer: its unit, then one cell per tick. Forecast layers blend each
- * cell into the next; the depth layer shows solid bands. Each label is dark or light, whichever
- * reads better on its cell (`LegendSpec` works that out).
+ * cell into the next; the depth layer shows solid bands. Each label is black or white, whichever
+ * has more contrast on its cell (`LegendSpec` works that out). It is a labelled region of its own,
+ * so screen reader users can find the key to the map's colours.
  */
 @Component({
   selector: 'glassy-legend',
@@ -17,7 +18,7 @@ import type { LegendSpec } from '../../domain/legend';
       }
     </ol>
   `,
-  host: { role: 'group', '[attr.aria-label]': 'label()' },
+  host: { role: 'region', '[attr.aria-label]': 'label()' },
   styleUrl: './legend.component.scss',
 })
 export class LegendComponent {

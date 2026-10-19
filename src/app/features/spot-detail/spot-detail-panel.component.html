@@ -3,12 +3,13 @@
     <glassy-icon name="back" />
   </button>
   <div>
-    <h2 class="name">{{ spot()?.name }}</h2>
+    <h2 id="spot-detail-name" class="name">{{ spot()?.name }}</h2>
     <p class="meta">{{ meta() }}</p>
   </div>
 </div>
 
-<div class="scroll">
+<!-- Focusable, so the details scroll from the keyboard too. -->
+<div class="scroll" tabindex="0" role="region" aria-labelledby="spot-detail-name">
   @if (detail(); as detail) {
     <div class="rating-row">
       <glassy-rating-badge [rating]="detail.rating" />

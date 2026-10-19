@@ -47,9 +47,9 @@ describe('App', () => {
   const pins = (element: HTMLElement): NodeListOf<HTMLButtonElement> =>
     element.querySelectorAll('glassy-spot-pin button');
 
-  it('floats the feature shell over the map', async () => {
+  it('floats the feature shell over the map, ahead of it in the page', async () => {
     const { element } = await setup();
-    expect(element.querySelector('glassy-map + glassy-app-shell')).not.toBeNull();
+    expect(element.querySelector('glassy-app-shell + glassy-map')).not.toBeNull();
     expect(element.querySelector('h1')?.textContent).toBe('Glassy');
     expect(element.querySelector('.tagline')?.textContent).toBe('Oahu snorkel forecast');
     expect(element.querySelectorAll('glassy-spot-ranking-row')).toHaveLength(OAHU_SPOTS.length);

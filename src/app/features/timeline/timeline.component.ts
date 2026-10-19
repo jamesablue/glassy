@@ -18,6 +18,7 @@ import { hourAtOffset, hourForKey, hourPercent } from './timeline-geometry';
   imports: [IconComponent],
   templateUrl: './timeline.component.html',
   styleUrl: './timeline.component.scss',
+  host: { role: 'region', 'aria-label': 'Forecast timeline' },
 })
 export class TimelineComponent {
   private readonly timeline = inject(TimelineStore);

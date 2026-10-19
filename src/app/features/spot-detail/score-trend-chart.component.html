@@ -1,22 +1,21 @@
 @let g = geometry();
 <div
   class="plot"
+  role="slider"
+  tabindex="0"
+  aria-label="Snorkel score and surf by hour"
+  aria-valuemin="0"
+  [attr.aria-valuemax]="maxHour()"
+  [attr.aria-valuenow]="selectedHour()"
+  [attr.aria-valuetext]="valueText()"
+  [attr.aria-describedby]="descriptionId"
   (pointerdown)="onPointerDown($event)"
   (pointermove)="onPointerMove($event)"
   (pointerup)="onPointerEnd()"
   (pointercancel)="onPointerEnd()"
+  (keydown)="onKeydown($event)"
 >
-  <svg
-    role="img"
-    preserveAspectRatio="none"
-    [attr.viewBox]="viewBox()"
-    [attr.aria-labelledby]="labelledBy"
-  >
-    <title [id]="titleId">Snorkel score and surf by hour</title>
-    <desc [id]="descriptionId">
-      Bars show the snorkel score out of 10 for each hour, dimmed at night, and the line shows the
-      surf. Day by day figures follow in a table.
-    </desc>
+  <svg aria-hidden="true" focusable="false" preserveAspectRatio="none" [attr.viewBox]="viewBox()">
     @for (night of g.nights; track night.start) {
       <rect
         class="night"
@@ -62,6 +61,12 @@
     <span class="day" aria-hidden="true" [style.left.%]="day.left">{{ day.label }}</span>
   }
 </div>
+
+<p class="visually-hidden" [id]="descriptionId">
+  Bars show the snorkel score out of 10 for each hour, dimmed at night, and the line shows the surf.
+  The arrow keys move through the hours, Page Up and Page Down by a day. Day by day figures follow
+  in a table.
+</p>
 
 <table class="visually-hidden">
   <caption>

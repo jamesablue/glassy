@@ -35,7 +35,8 @@ import { rateScore } from '../../../domain/scoring';
       font-weight: 600;
       letter-spacing: 0.3px;
       text-transform: uppercase;
-      opacity: 0.75;
+      // Softer than the score, still at least 5:1 on every rating colour.
+      opacity: 0.85;
     }
   `,
 })

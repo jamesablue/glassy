@@ -48,6 +48,22 @@
       white-space: nowrap;
     }
   }
+
+  // Short screens (a phone held sideways, a page zoomed to 200%): smaller buttons, so the whole
+  // menu fits above the legend and the timeline.
+  @media (max-height: 560px) {
+    padding-block: 1px;
+
+    .icon {
+      width: 26px;
+      height: 26px;
+    }
+
+    glassy-icon {
+      width: 15px;
+      height: 15px;
+    }
+  }
 }
 
 // The column the buttons stack in, right-aligned.

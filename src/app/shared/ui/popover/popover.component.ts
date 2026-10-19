@@ -1,11 +1,25 @@
-import { Component, input, signal } from '@angular/core';
+import { Component, ElementRef, inject, input, signal } from '@angular/core';
 
 let nextTitleId = 0;
 
+/** What can take keyboard focus inside a popover, in the order Tab would reach it. */
+const FOCUSABLE = [
+  'a[href]',
+  'button:not([disabled])',
+  'input:not([disabled])',
+  'select:not([disabled])',
+  'textarea:not([disabled])',
+  '[tabindex]',
+]
+  .map((selector) => `${selector}:not([tabindex="-1"])`)
+  .join(', ');
+
 /**
  * A non-modal popover card on the native Popover API. The browser puts it in the top layer, closes
- * it on Escape or a click outside, keeps one open at a time, and moves Tab from the button that
- * opened it into it. Open it declaratively with a button that names its id:
+ * it on Escape or a click outside, keeps one open at a time, moves Tab from the button that opened
+ * it into it, and gives focus back to that button when it closes. On opening, focus moves to its
+ * first control (or to the card itself while its content loads), so keyboard and screen reader
+ * users start inside it. Open it declaratively with a button that names its id:
  *
  * ```html
  * <button type="button" popovertarget="units-popover">Units</button>
@@ -28,8 +42,10 @@ let nextTitleId = 0;
   host: {
     popover: 'auto',
     role: 'dialog',
+    tabindex: '-1',
     '[attr.aria-labelledby]': 'titleId',
     '(beforetoggle)': 'onToggle($event)',
+    '(toggle)': 'onShown($event)',
   },
   styles: `
     // No display here: the browser hides a closed popover with display: none.
@@ -44,6 +60,11 @@ let nextTitleId = 0;
       background: var(--panel-solid);
       color: var(--text);
       box-shadow: var(--shadow-popover);
+    }
+
+    :host(:focus-visible) {
+      outline: 2px solid var(--accent-2);
+      outline-offset: 2px;
     }
 
     .title {
@@ -68,8 +89,17 @@ export class PopoverComponent {
   readonly isOpen = this.open.asReadonly();
 
   protected readonly titleId = `glassy-popover-title-${nextTitleId++}`;
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
 
   protected onToggle(event: Event): void {
     this.open.set((event as ToggleEvent).newState === 'open');
+  }
+
+  /** Once it is showing, starts keyboard focus inside it unless focus is there already. */
+  protected onShown(event: Event): void {
+    if ((event as ToggleEvent).newState !== 'open') return;
+    const host = this.host.nativeElement;
+    if (host.contains(host.ownerDocument.activeElement)) return;
+    (host.querySelector<HTMLElement>(FOCUSABLE) ?? host).focus();
   }
 }
