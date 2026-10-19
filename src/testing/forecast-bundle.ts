@@ -1,7 +1,8 @@
 import { toVectorField } from '../app/domain/grid/vector-field';
 import type { ForecastBundle, GridSpec } from '../app/domain/models';
+import fixture from './fixtures/spot-forecast.fixture.json';
 import { hourlyTimes } from './open-meteo-builders';
-import { buildSpotForecast } from './spot-forecast';
+import { buildSpotForecast, spotForecastFromFixture } from './spot-forecast';
 
 /** A small but complete forecast: two grid cells and one spot, with non-round float values. */
 export function testForecastBundle(hourCount = 3, start = 1_800_000_000): ForecastBundle {
@@ -29,5 +30,21 @@ export function testForecastBundle(hourCount = 3, start = 1_800_000_000): Foreca
     spots: buildSpotForecast(1, hourCount, (variable, _spot, hour) =>
       variable === 'windGust' ? null : hour + 0.3,
     ),
+  };
+}
+
+/**
+ * The recorded forecast for every Oahu spot (`fixtures/spot-forecast.fixture.json`, 48 hours from
+ * midnight on 18 October 2026 in Honolulu), on a small synthetic grid. Its scores and rankings are
+ * the golden ones in `fixtures/spot-forecast.expected.json`.
+ */
+export function recordedForecastBundle(): ForecastBundle {
+  const spots = spotForecastFromFixture(fixture);
+  return {
+    times: fixture.times,
+    // Like the data layer, take daylight from the first spot.
+    isDay: fixture.times.map((_, hour) => fixture.series.isDay[0]?.[hour] === 1),
+    grid: testForecastBundle(spots.hourCount, fixture.times[0]).grid,
+    spots,
   };
 }
