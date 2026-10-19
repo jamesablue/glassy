@@ -97,6 +97,7 @@
         "test": {
           "builder": "@angular/build:unit-test",
           "options": {
+            "runnerConfig": "vitest-base.config.mts",
             "coverageInclude": ["src/app/**/*.ts"],
             "coverageExclude": ["src/app/**/*.spec.ts"],
             "coverageReporters": ["text-summary", "html", "lcov"]
@@ -109,6 +110,7 @@
               "src/**/*.ts",
               "src/**/*.html",
               "e2e/**/*.ts",
+              "scripts/**/*.ts",
               "playwright.config.ts"
             ]
           }
