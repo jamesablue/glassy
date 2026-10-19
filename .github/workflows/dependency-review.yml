@@ -34,11 +34,11 @@ jobs:
           BASE: ${{ github.event.pull_request.base.sha }}
           HEAD: ${{ github.event.pull_request.head.sha }}
         run: |
-          status=$(curl --silent --output /dev/null --write-out '%{http_code}' \
+          status=$(curl --silent --output compare.json --write-out '%{http_code}' \
             --header "Authorization: Bearer $GH_TOKEN" \
             --header 'Accept: application/vnd.github+json' \
             "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/dependency-graph/compare/$BASE...$HEAD")
-          echo "Dependency graph compare: HTTP $status"
+          echo "Dependency graph compare: HTTP $status: $(jq -r '.message? // "ok"' compare.json 2>/dev/null)"
           if [ "$status" = 403 ] || [ "$status" = 404 ]; then
             echo "enabled=false" >> "$GITHUB_OUTPUT"
             echo "::warning title=Dependency review skipped::The dependency graph is off for this repository, so dependency changes are not reviewed. Turn it on in Settings > Code security > Dependency graph."
