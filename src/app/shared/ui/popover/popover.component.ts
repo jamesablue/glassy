@@ -12,8 +12,12 @@ let nextTitleId = 0;
  * <glassy-popover id="units-popover" heading="Units">…</glassy-popover>
  * ```
  *
- * `isOpen` follows the browser's `toggle` events, for content that should only render once the
- * popover has been opened. Place it with `--popover-top`, `--popover-right` and `--popover-width`.
+ * `isOpen` follows the browser, for content that should only render once the popover has been
+ * opened and for key handlers that should leave Escape to an open popover. It listens to
+ * `beforetoggle`, which fires as the popover opens or closes, rather than `toggle`, which arrives a
+ * task later: a key pressed in between would otherwise see the old state.
+ *
+ * Place it with `--popover-top`, `--popover-right` and `--popover-width`.
  */
 @Component({
   selector: 'glassy-popover',
@@ -25,7 +29,7 @@ let nextTitleId = 0;
     popover: 'auto',
     role: 'dialog',
     '[attr.aria-labelledby]': 'titleId',
-    '(toggle)': 'onToggle($event)',
+    '(beforetoggle)': 'onToggle($event)',
   },
   styles: `
     // No display here: the browser hides a closed popover with display: none.

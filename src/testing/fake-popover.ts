@@ -12,8 +12,8 @@ export interface FakePopover {
 /**
  * The parts of the HTML Popover API that jsdom lacks, enough to test components built on it, as
  * `fake-canvas.ts` does for canvases: `showPopover`, `hidePopover` and `togglePopover` with their
- * `toggle` events, buttons with `popovertarget`, one `auto` popover open at a time, and light
- * dismiss with Escape or a click outside.
+ * `beforetoggle` and `toggle` events, buttons with `popovertarget`, one `auto` popover open at a
+ * time, and light dismiss with Escape or a click outside.
  *
  * Like a browser, it closes a popover on Escape only after the page has seen the key (and not when
  * the page cancelled it), so app-wide key handlers run first.
@@ -21,20 +21,24 @@ export interface FakePopover {
 export function installFakePopover(): FakePopover {
   const open = new Set<HTMLElement>();
 
-  const toggle = (element: HTMLElement, show: boolean): void => {
-    if (open.has(element) === show) return;
-    if (show) {
-      for (const other of [...open]) toggle(other, false);
-      open.add(element);
-    } else {
-      open.delete(element);
-    }
-    const event = new Event('toggle');
+  const dispatch = (element: HTMLElement, type: string, show: boolean): void => {
+    const event = new Event(type);
     Object.assign(event, {
       oldState: show ? 'closed' : 'open',
       newState: show ? 'open' : 'closed',
     });
     element.dispatchEvent(event);
+  };
+
+  const toggle = (element: HTMLElement, show: boolean): void => {
+    if (open.has(element) === show) return;
+    if (show) {
+      for (const other of [...open]) toggle(other, false);
+    }
+    dispatch(element, 'beforetoggle', show);
+    if (show) open.add(element);
+    else open.delete(element);
+    dispatch(element, 'toggle', show);
   };
 
   const prototype = HTMLElement.prototype as unknown as Record<string, unknown>;

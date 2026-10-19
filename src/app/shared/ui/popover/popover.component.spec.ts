@@ -66,6 +66,16 @@ describe('PopoverComponent', () => {
     expect(host.popover().isOpen()).toBe(false);
   });
 
+  it('knows it is opening before the browser’s later toggle event', async () => {
+    const { host, popover } = await render();
+    const beforeToggle = (newState: string): Event =>
+      Object.assign(new Event('beforetoggle'), { oldState: '', newState });
+    popover.dispatchEvent(beforeToggle('open'));
+    expect(host.popover().isOpen()).toBe(true);
+    popover.dispatchEvent(beforeToggle('closed'));
+    expect(host.popover().isOpen()).toBe(false);
+  });
+
   it('closes on Escape and on a click outside', async () => {
     const { element, host } = await render();
     element.querySelector('button')?.click();
