@@ -1,29 +1,58 @@
 /**
- * Records the golden-test fixture: the first 48 hours of real Open-Meteo data for every Oahu spot.
+ * Records every test fixture from one run against the live APIs, so they all describe the same
+ * forecast:
  *
- * It makes the same two spot requests as the app: marine values at each spot's offshore point
- * (`cell_selection=sea`) and weather at the spot itself. The result is saved in the domain's own
- * variable names to src/testing/fixtures/spot-forecast.fixture.json.
+ * - `src/testing/fixtures/raw/`: the four Open-Meteo responses exactly as the app requests them
+ *   (same URLs, built by `forecastRequestUrls`) and three NOAA `identify` responses, plus a
+ *   manifest with the URLs and recording time. Each Open-Meteo response is cut to the first
+ *   48 hours the four share. The data layer's tests read these files and the end-to-end tests
+ *   serve them as network mocks.
+ * - `src/testing/fixtures/spot-forecast.fixture.json`: the per-spot series in the domain's own
+ *   variable names, for the golden scoring test. It is unpacked here independently of the app's
+ *   adapter, so the adapter's fixture test compares two implementations.
  *
+ * See src/testing/fixtures/README.md for the layout.
  * Usage: `npm run fixtures:record`, then `npm run fixtures:expected` to refresh the expected scores.
  */
-import { writeFile } from 'node:fs/promises';
+import { mkdir, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { format, resolveConfig } from 'prettier';
-import { offshorePoint } from '../src/app/domain/geo/offshore-point';
-import type { SpotVariable } from '../src/app/domain/models';
+import { DEFAULT_GLASSY_CONFIG } from '../src/app/core/glassy-config';
+import { identifyUrl } from '../src/app/data/noaa/identify';
+import type {
+  OpenMeteoLocation,
+  OpenMeteoResponse,
+} from '../src/app/data/open-meteo/open-meteo.types';
+import {
+  forecastRequestUrls,
+  type ForecastRequestId,
+} from '../src/app/data/open-meteo/open-meteo.urls';
+import type { LatLon, SpotVariable } from '../src/app/domain/models';
 import { OAHU_SPOTS } from '../src/app/domain/spots/oahu.spots';
-import { HONOLULU_TIME_ZONE } from '../src/app/domain/time/hst';
 
-const MARINE_API = 'https://marine-api.open-meteo.com/v1/marine';
-const WEATHER_API = 'https://api.open-meteo.com/v1/forecast';
-const FORECAST_DAYS = 5;
 const RECORDED_HOURS = 48;
-const OUTPUT_PATH = fileURLToPath(
-  new URL('../src/testing/fixtures/spot-forecast.fixture.json', import.meta.url),
-);
+const FIXTURES_DIR = new URL('../src/testing/fixtures/', import.meta.url);
+const RAW_DIR = new URL('raw/', FIXTURES_DIR);
+const SOURCE = 'Open-Meteo Marine and Forecast APIs (https://open-meteo.com, CC BY 4.0)';
+const NOAA_SOURCE =
+  'NOAA NCEI DEM mosaic ImageServer (https://gis.ngdc.noaa.gov/arcgis/rest/services/DEM_mosaics/DEM_all/ImageServer)';
 
-/** Open-Meteo variable behind each spot series. */
+const OPEN_METEO_FILES: Readonly<Record<ForecastRequestId, string>> = {
+  gridMarine: 'open-meteo-grid-marine.json',
+  gridWind: 'open-meteo-grid-wind.json',
+  spotMarine: 'open-meteo-spot-marine.json',
+  spotWeather: 'open-meteo-spot-weather.json',
+};
+const REQUEST_IDS = Object.keys(OPEN_METEO_FILES) as ForecastRequestId[];
+
+/** One point of each kind the point inspector has to handle. */
+const NOAA_POINTS: Readonly<Record<string, LatLon & { readonly description: string }>> = {
+  ocean: { lat: 21.269, lon: -157.6936, description: 'Hanauma Bay, a few metres deep' },
+  land: { lat: 21.262, lon: -157.8049, description: 'The slope of Diamond Head' },
+  nodata: { lat: 0, lon: -180, description: 'The antimeridian, outside the mosaic' },
+};
+
+/** Open-Meteo variable behind each spot series in the domain fixture. */
 const MARINE_VARIABLES = {
   swellHeight: 'swell_wave_height',
   swellDirection: 'swell_wave_direction',
@@ -51,93 +80,140 @@ const VARIABLES = { ...MARINE_VARIABLES, ...WEATHER_VARIABLES } satisfies Record
   string
 >;
 
-interface OpenMeteoLocation {
-  readonly hourly: Readonly<Record<string, readonly (number | null)[] | undefined>>;
-}
+type Location = OpenMeteoLocation<string>;
+type Response = OpenMeteoResponse<string>;
 
-/** Same query string the app builds: hourly values, Honolulu time, Unix timestamps. */
-function forecastUrl(
-  base: string,
-  points: readonly { lat: string; lon: string }[],
-  variables: readonly string[],
-  extra: string,
-): string {
-  return (
-    `${base}?latitude=${points.map((p) => p.lat).join(',')}` +
-    `&longitude=${points.map((p) => p.lon).join(',')}` +
-    `&hourly=${variables.join(',')}&forecast_days=${FORECAST_DAYS}` +
-    `&timezone=${encodeURIComponent(HONOLULU_TIME_ZONE)}&timeformat=unixtime${extra}`
-  );
-}
-
-async function fetchLocations(url: string): Promise<readonly OpenMeteoLocation[]> {
+async function fetchJson(url: string): Promise<unknown> {
   const response = await fetch(url);
   if (!response.ok) {
-    throw new Error(`Open-Meteo returned ${response.status}: ${await response.text()}`);
+    throw new Error(`${url} returned ${response.status}: ${await response.text()}`);
   }
-  const body = (await response.json()) as OpenMeteoLocation | OpenMeteoLocation[];
-  return Array.isArray(body) ? body : [body];
+  return response.json();
 }
 
-function hourly(location: OpenMeteoLocation | undefined, name: string): readonly (number | null)[] {
+function isLocationList(response: Response): response is readonly Location[] {
+  return Array.isArray(response);
+}
+
+function locationsOf(response: Response): readonly Location[] {
+  return isLocationList(response) ? response : [response];
+}
+
+/** Cuts every location's hourly series to `hours` entries from `start`, keeping the response shape. */
+function trimHours(response: Response, start: number, hours: number): Response {
+  const trim = (location: Location): Location => {
+    const offset = location.hourly.time.indexOf(start);
+    if (offset < 0 || offset + hours > location.hourly.time.length) {
+      throw new Error(`A response has fewer than ${hours} hours from ${start}`);
+    }
+    const hourly = Object.fromEntries(
+      Object.entries(location.hourly).map(([name, values]) => [
+        name,
+        values?.slice(offset, offset + hours),
+      ]),
+    );
+    return {
+      ...location,
+      hourly: { ...hourly, time: location.hourly.time.slice(offset, offset + hours) },
+    };
+  };
+  return isLocationList(response) ? response.map(trim) : trim(response);
+}
+
+function hourly(location: Location | undefined, name: string): readonly (number | null)[] {
   const values = location?.hourly[name];
   if (!values) throw new Error(`Response has no hourly "${name}"`);
   return values;
 }
 
+async function writeJson(
+  url: URL,
+  value: unknown,
+  { pretty }: { pretty: boolean },
+): Promise<number> {
+  const path = fileURLToPath(url);
+  const json = JSON.stringify(value);
+  const text = pretty
+    ? await format(json, { ...(await resolveConfig(path)), filepath: path })
+    : `${json}\n`;
+  await writeFile(path, text);
+  return Buffer.byteLength(text);
+}
+
 async function main(): Promise<void> {
-  const offshore = OAHU_SPOTS.map((spot) => offshorePoint(spot));
-  const [marine, weather] = await Promise.all([
-    fetchLocations(
-      forecastUrl(
-        MARINE_API,
-        offshore.map((p) => ({ lat: p.lat.toFixed(4), lon: p.lon.toFixed(4) })),
-        Object.values(MARINE_VARIABLES),
-        '&cell_selection=sea',
-      ),
-    ),
-    fetchLocations(
-      forecastUrl(
-        WEATHER_API,
-        OAHU_SPOTS.map((spot) => ({ lat: String(spot.lat), lon: String(spot.lon) })),
-        Object.values(WEATHER_VARIABLES),
-        '&wind_speed_unit=ms&cell_selection=nearest',
-      ),
-    ),
-  ]);
-
-  // Align both models to the marine time axis, as the app does.
-  const marineTimes = hourly(marine[0], 'time');
-  const weatherOffset = hourly(weather[0], 'time').indexOf(marineTimes[0] ?? NaN);
-  if (weatherOffset < 0) throw new Error('Marine and weather time axes do not overlap');
-
-  const recordedHours = (values: readonly (number | null)[], offset: number): (number | null)[] =>
-    values.slice(offset, offset + RECORDED_HOURS);
-
-  const series = Object.fromEntries(
-    Object.entries(VARIABLES).map(([variable, name]) => {
-      const isMarine = variable in MARINE_VARIABLES;
-      const locations = isMarine ? marine : weather;
-      const offset = isMarine ? 0 : weatherOffset;
-      return [
-        variable,
-        OAHU_SPOTS.map((_, p) => recordedHours(hourly(locations[p], name), offset)),
-      ];
-    }),
+  const urls = forecastRequestUrls(DEFAULT_GLASSY_CONFIG, OAHU_SPOTS);
+  const fetched = await Promise.all(
+    REQUEST_IDS.map(async (id) => [id, (await fetchJson(urls[id])) as Response] as const),
   );
 
-  const fixture = {
-    source: 'Open-Meteo Marine and Forecast APIs (https://open-meteo.com, CC BY 4.0)',
-    recordedAt: new Date().toISOString(),
-    spotIds: OAHU_SPOTS.map((spot) => spot.id),
-    times: recordedHours(marineTimes, 0),
-    series,
-  };
+  // The first hour all four responses share; usually local midnight for every one of them.
+  const start = Math.max(
+    ...fetched.map(([, response]) => locationsOf(response)[0]?.hourly.time[0] ?? NaN),
+  );
+  if (!Number.isFinite(start)) throw new Error('A response has no hours');
+  const responses = Object.fromEntries(
+    fetched.map(([id, response]) => [id, trimHours(response, start, RECORDED_HOURS)]),
+  ) as Record<ForecastRequestId, Response>;
 
-  const options = await resolveConfig(OUTPUT_PATH);
-  const text = await format(JSON.stringify(fixture), { ...options, filepath: OUTPUT_PATH });
-  await writeFile(OUTPUT_PATH, text);
-  console.log(`Wrote ${RECORDED_HOURS} hours for ${OAHU_SPOTS.length} spots to ${OUTPUT_PATH}`);
+  await mkdir(RAW_DIR, { recursive: true });
+  const sizes: string[] = [];
+  for (const id of REQUEST_IDS) {
+    const bytes = await writeJson(new URL(OPEN_METEO_FILES[id], RAW_DIR), responses[id], {
+      pretty: false,
+    });
+    sizes.push(`${OPEN_METEO_FILES[id]} ${(bytes / 1024).toFixed(0)} kB`);
+  }
+
+  const noaa: Record<string, { file: string; url: string; description: string }> = {};
+  for (const [kind, point] of Object.entries(NOAA_POINTS)) {
+    const url = identifyUrl(DEFAULT_GLASSY_CONFIG.noaaDemUrl, point);
+    const file = `noaa-identify-${kind}.json`;
+    await writeJson(new URL(file, RAW_DIR), await fetchJson(url), { pretty: false });
+    noaa[kind] = { file, url, description: point.description };
+  }
+
+  const recordedAt = new Date().toISOString();
+  await writeJson(
+    new URL('manifest.json', RAW_DIR),
+    {
+      recordedAt,
+      hours: RECORDED_HOURS,
+      openMeteo: {
+        source: SOURCE,
+        requests: Object.fromEntries(
+          REQUEST_IDS.map((id) => [id, { file: OPEN_METEO_FILES[id], url: urls[id] }]),
+        ),
+      },
+      noaaIdentify: { source: NOAA_SOURCE, requests: noaa },
+    },
+    { pretty: true },
+  );
+
+  // The domain fixture: each spot's series, unpacked straight from the trimmed responses.
+  const marine = locationsOf(responses.spotMarine);
+  const weather = locationsOf(responses.spotWeather);
+  if (marine.length !== OAHU_SPOTS.length || weather.length !== OAHU_SPOTS.length) {
+    throw new Error('The spot responses do not have one location per spot');
+  }
+  const series = Object.fromEntries(
+    Object.entries(VARIABLES).map(([variable, name]) => {
+      const locations = variable in MARINE_VARIABLES ? marine : weather;
+      return [variable, OAHU_SPOTS.map((_, spot) => hourly(locations[spot], name))];
+    }),
+  );
+  await writeJson(
+    new URL('spot-forecast.fixture.json', FIXTURES_DIR),
+    {
+      source: SOURCE,
+      recordedAt,
+      spotIds: OAHU_SPOTS.map((spot) => spot.id),
+      times: hourly(marine[0], 'time'),
+      series,
+    },
+    { pretty: true },
+  );
+
+  console.log(`Recorded ${RECORDED_HOURS} hours at ${recordedAt}:\n  ${sizes.join('\n  ')}`);
 }
 
 main().catch((error: unknown) => {

@@ -8,3 +8,6 @@ test-results/
 package-lock.json
 # The CDK app has its own Prettier run (cd infra && npm run format:check)
 infra/
+# Recorded API responses, kept byte for byte as the APIs send them (see the README there)
+src/testing/fixtures/raw/*.json
+!src/testing/fixtures/raw/manifest.json
