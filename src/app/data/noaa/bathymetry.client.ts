@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
-import { catchError, map, of, type Observable } from 'rxjs';
+import { map, of, type Observable } from 'rxjs';
 import { GLASSY_CONFIG } from '../../core/glassy-config.token';
 import { identifyUrl, parsePixelValue, type IdentifyResponse } from './identify';
 
@@ -18,8 +18,9 @@ export class BathymetryClient {
 
   /**
    * Ground elevation at a point in metres relative to sea level: negative under water (the depth
-   * is its negation) and positive on land. Emits `NaN` when NOAA has no data there or the lookup
-   * fails, so the inspector can show a dash instead of an error. Answers are remembered per
+   * is its negation) and positive on land. Emits `NaN` when NOAA has no data there. Errors when
+   * the lookup fails (no connection, a server error, or the error body ArcGIS sends with HTTP 200),
+   * so the inspector can tell "no depth here" from "couldn't ask". Answers are remembered per
    * rounded point; failures are not, so tapping the same spot again retries.
    */
   elevationAt(lat: number, lon: number): Observable<number> {
@@ -30,12 +31,13 @@ export class BathymetryClient {
 
     return this.http.get<IdentifyResponse>(identifyUrl(this.baseUrl, point)).pipe(
       map((response) => {
-        if (typeof response.value !== 'string') return NaN;
+        if (typeof response.value !== 'string') {
+          throw new Error(response.error?.message ?? 'NOAA did not return an elevation');
+        }
         const elevation = parsePixelValue(response.value);
         this.remember(key, elevation);
         return elevation;
       }),
-      catchError(() => of(NaN)),
     );
   }
 

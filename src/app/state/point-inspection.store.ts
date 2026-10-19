@@ -12,8 +12,8 @@ import { TimelineStore } from './timeline.store';
  *
  * - `loading`: NOAA has not answered yet
  * - `ready`: metres relative to sea level, negative under water (the depth is its negation)
- * - `no-data`: NOAA has no elevation there, or the lookup failed and the client gave up quietly
- * - `error`: the lookup failed outright
+ * - `no-data`: NOAA has no elevation there
+ * - `error`: the lookup failed (no connection, or NOAA answered with an error); tapping again retries
  */
 export type ElevationReading =
   | { readonly status: 'loading' }
