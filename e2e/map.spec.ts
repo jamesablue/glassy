@@ -59,10 +59,10 @@ test.describe('map', () => {
   test('reads out the forecast and depth where the sea is tapped', async ({ page }) => {
     await page.goto('/');
     // Tap open water a little south of Hanauma Bay's pin, above the legend; the dot's centre is
-    // 8 × 11 px in.
+    // 12 × 12 px in.
     const box = await pin(page, 'Hanauma Bay').boundingBox();
     if (!box) throw new Error('Hanauma Bay pin is not on screen');
-    await page.mouse.click(box.x + 8, box.y + 11 + 40);
+    await page.mouse.click(box.x + 12, box.y + 12 + 40);
 
     const readout = page.locator('.leaflet-popup glassy-point-readout');
     await expect(readout).toBeVisible();
