@@ -1,10 +1,5 @@
-import { expect, test } from '@playwright/test';
-import { legendUnit, menuButton, ranking, rankingRow, showRanking } from './support/glassy';
-import { serveOffline } from './support/offline';
-
-test.beforeEach(async ({ page }) => {
-  await serveOffline(page);
-});
+import { ranking, rankingRow, showRanking, spotHeading, timeline } from './support/glassy';
+import { expect, test } from './support/test';
 
 test.describe('spot detail', () => {
   test('opens a spot from the ranking, shows its conditions and goes back', async ({ page }) => {
@@ -13,7 +8,7 @@ test.describe('spot detail', () => {
     await rankingRow(page, 'Hanauma Bay').click();
 
     const detail = page.locator('glassy-spot-detail-panel');
-    await expect(detail.getByRole('heading', { level: 2, name: 'Hanauma Bay' })).toBeVisible();
+    await expect(spotHeading(page, 'Hanauma Bay')).toBeVisible();
     await expect(detail.getByText('South Shore · Beginner')).toBeVisible();
     await expect(detail.locator('glassy-rating-badge')).toHaveText(
       /^(Excellent|Good|Fair|Poor|Hazardous)$/,
@@ -41,7 +36,7 @@ test.describe('spot detail', () => {
 
   test('closes with Escape', async ({ page }) => {
     await page.goto('/?spot=kuilima');
-    await expect(page.getByRole('heading', { name: 'Kuilima Cove (Turtle Bay)' })).toBeVisible();
+    await expect(spotHeading(page, 'Kuilima Cove (Turtle Bay)')).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(page.locator('glassy-spot-detail-panel')).toHaveCount(0);
   });
@@ -56,19 +51,6 @@ test.describe('spot detail', () => {
     // The recording has 48 hours; the last quarter of the chart is Monday afternoon and evening.
     await page.mouse.click(box.x + box.width * (36.5 / 48), box.y + box.height / 2);
 
-    await expect(page.getByRole('slider', { name: 'Forecast hour' })).toHaveAttribute(
-      'aria-valuetext',
-      'Mon 12 PM',
-    );
-  });
-
-  test('restores a shared link to a spot on the depth layer', async ({ page }) => {
-    await page.goto('/?spot=hanauma&layer=depth');
-
-    await expect(page.getByRole('heading', { level: 2, name: 'Hanauma Bay' })).toBeVisible();
-    await expect(menuButton(page, 'Depth')).toHaveAttribute('aria-pressed', 'true');
-    await expect(legendUnit(page)).toHaveText('ft');
-    await expect(page.locator('glassy-legend li')).toHaveCount(12);
-    await expect(page.locator('glassy-legend li').last()).toHaveText('1640');
+    await expect(timeline(page)).toHaveAttribute('aria-valuetext', 'Mon 12 PM');
   });
 });

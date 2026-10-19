@@ -87,6 +87,30 @@ const frameworkFreeRenderers = {
   },
 };
 
+/**
+ * End-to-end specs take `test` and `expect` from e2e/support/test.ts, whose fixture runs every page
+ * offline against the recorded network, so no spec can reach a live service by accident.
+ */
+const e2eSharedFixture = {
+  name: 'glassy/e2e/shared-fixture',
+  files: ['e2e/**/*.spec.ts'],
+  rules: {
+    '@typescript-eslint/no-restricted-imports': [
+      'error',
+      {
+        paths: [
+          {
+            name: '@playwright/test',
+            message:
+              "Import test and expect from './support/test', which serves the recorded network and pins the clock.",
+            allowTypeImports: true,
+          },
+        ],
+      },
+    ],
+  },
+};
+
 module.exports = defineConfig([
   globalIgnores([
     'dist/',
@@ -99,7 +123,7 @@ module.exports = defineConfig([
     'infra/',
   ]),
   {
-    files: ['**/*.ts'],
+    files: ['**/*.ts', '**/*.mts'],
     extends: [
       eslint.configs.recommended,
       tseslint.configs.recommended,
@@ -134,5 +158,6 @@ module.exports = defineConfig([
   ...LAYERS.map((layer) => layerBoundary(/** @type {keyof typeof LAYER_IMPORTS} */ (layer))),
   // After the layer boundaries: for these files it replaces the map's rule with a stricter one.
   frameworkFreeRenderers,
+  e2eSharedFixture,
   prettier,
 ]);

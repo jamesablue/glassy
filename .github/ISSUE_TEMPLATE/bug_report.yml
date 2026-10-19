@@ -1,0 +1,57 @@
+name: Bug report
+description: Something in Glassy is broken or behaves unexpectedly.
+title: 'bug: '
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a problem. For a security issue, do not open an issue: see SECURITY.md.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you saw, and what you expected instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: A shared link (the URL keeps the spot, layer and hour) helps a lot.
+      placeholder: |
+        1. Open https://...?spot=hanauma&layer=waves
+        2. Move the timeline to Monday noon
+        3. ...
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Where
+      options:
+        - Map (layers, particles, pins, point readout)
+        - Ranking or spot details
+        - Timeline
+        - Popovers (Units, About)
+        - Loading, errors or offline
+        - Scores or forecast data
+        - Something else
+    validations:
+      required: true
+
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and device
+      placeholder: Safari 19 on iPhone 16, Chrome 141 on Windows 11
+    validations:
+      required: true
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Screenshots, console errors or anything else

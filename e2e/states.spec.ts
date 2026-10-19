@@ -1,12 +1,17 @@
-import { expect, test, type Page } from '@playwright/test';
-import { collectErrors, ranking, rankingHeader, rankingRow, showRanking } from './support/glassy';
+import {
+  collectErrors,
+  pointReadout,
+  ranking,
+  rankingHeader,
+  rankingRow,
+  showRanking,
+  SPOT_COUNT,
+  tapOpenSea,
+  waitForForecast,
+} from './support/glassy';
 import { ESRI_TILES, NOAA_IDENTIFY, NOAA_TILES } from './support/map-sources';
-import { serveOffline } from './support/offline';
 import { failForecastRequests, showStaleForecast } from './support/states';
-
-test.beforeEach(async ({ page }) => {
-  await serveOffline(page);
-});
+import { expect, test, type Page } from './support/test';
 
 /**
  * Errors the app itself reported. The browser also logs every request that failed ("Failed to
@@ -32,7 +37,7 @@ test.describe('when the forecast cannot be loaded', () => {
     await screen.getByRole('button', { name: 'Retry' }).click();
     await expect(screen).toBeHidden();
     await showRanking(page);
-    await expect(ranking(page).getByRole('listitem')).toHaveCount(25);
+    await expect(ranking(page).getByRole('listitem')).toHaveCount(SPOT_COUNT);
     expect(errors()).toEqual([]);
   });
 
@@ -72,7 +77,7 @@ test('says when the connection drops, and carries on with the forecast on show',
   context,
 }) => {
   await page.goto('/');
-  await expect(page.locator('glassy-spot-pin button')).toHaveCount(25);
+  await waitForForecast(page);
 
   await context.setOffline(true);
   await expect(page.getByRole('status').filter({ hasText: "You're offline" })).toContainText(
@@ -100,7 +105,7 @@ test.describe('when map tiles fail', () => {
     await expect(notice).toHaveText(
       "Map tiles aren't loading right now. The forecast still works.",
     );
-    await expect(page.locator('glassy-spot-pin button')).toHaveCount(25);
+    await waitForForecast(page);
 
     // The sources are paused: panning asks for no more tiles from them.
     const before = tileRequests.length;
@@ -117,11 +122,10 @@ test('shows a dash with the reason when the depth lookup fails', async ({ page }
   const errors = appErrors(page);
   await page.route(NOAA_IDENTIFY, (route) => route.fulfill({ status: 500 }));
   await page.goto('/?layer=wind');
-  await expect(page.locator('glassy-spot-pin button')).toHaveCount(25);
-  const width = page.viewportSize()?.width ?? 0;
-  await page.mouse.click(width / 2, 20);
+  await waitForForecast(page);
+  await tapOpenSea(page);
 
-  const depth = page.locator('.leaflet-popup glassy-point-readout .depth dd');
+  const depth = pointReadout(page).locator('.depth dd');
   await expect(depth).toContainText('—');
   await expect(depth).toHaveAttribute('title', /Couldn’t get the depth from NOAA/);
   expect(errors()).toEqual([]);

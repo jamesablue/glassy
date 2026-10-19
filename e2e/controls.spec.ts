@@ -1,17 +1,15 @@
-import { expect, test, type Page } from '@playwright/test';
 import {
   clickHour,
   collectErrors,
+  legendItems,
   legendUnit,
   menuButton,
   rankingRow,
   showRanking,
+  SPOT_COUNT,
+  spotHeading,
 } from './support/glassy';
-import { serveOffline } from './support/offline';
-
-test.beforeEach(async ({ page }) => {
-  await serveOffline(page);
-});
+import { expect, test, type Page } from './support/test';
 
 /** The Units popover's choice for one kind of value, by its visible label. */
 function unitChoice(page: Page, group: string, unit: string) {
@@ -21,7 +19,7 @@ function unitChoice(page: Page, group: string, unit: string) {
     .getByRole('radio', { name: unit, exact: true });
 }
 
-test.describe('layers', () => {
+test.describe('layers and legend', () => {
   test('switching the layer switches the legend', async ({ page }) => {
     await page.goto('/');
     await expect(menuButton(page, 'Waves')).toHaveAttribute('aria-pressed', 'true');
@@ -37,18 +35,18 @@ test.describe('layers', () => {
     await expect(legendUnit(page)).toHaveText('s');
 
     await menuButton(page, 'Depth').click();
-    await expect(page.locator('glassy-legend li')).toHaveCount(12);
+    await expect(legendItems(page)).toHaveCount(12);
     await expect(page.locator('.field-canvas')).toBeHidden();
   });
 
-  test('turns the spot pins off and on', async ({ page }) => {
+  test('the Spots button hides and shows the pins', async ({ page }) => {
     await page.goto('/');
-    await expect(page.locator('glassy-spot-pin')).toHaveCount(25);
+    await expect(page.locator('glassy-spot-pin')).toHaveCount(SPOT_COUNT);
     await menuButton(page, 'Spots').click();
     await expect(menuButton(page, 'Spots')).toHaveAttribute('aria-pressed', 'false');
     await expect(page.locator('glassy-spot-pin')).toHaveCount(0);
     await menuButton(page, 'Spots').click();
-    await expect(page.locator('glassy-spot-pin')).toHaveCount(25);
+    await expect(page.locator('glassy-spot-pin')).toHaveCount(SPOT_COUNT);
   });
 });
 
@@ -106,7 +104,7 @@ test.describe('popovers', () => {
 
   test('Escape closes an open popover before the spot details', async ({ page }) => {
     await page.goto('/?spot=hanauma');
-    const detail = page.getByRole('heading', { level: 2, name: 'Hanauma Bay' });
+    const detail = spotHeading(page, 'Hanauma Bay');
     await expect(detail).toBeVisible();
 
     await menuButton(page, 'Units').click();
@@ -119,13 +117,13 @@ test.describe('popovers', () => {
   });
 });
 
-test('runs a full visit without console errors', async ({ page }) => {
+test('a full visit logs no console errors', async ({ page }) => {
   const errors = collectErrors(page);
   await page.goto('/');
   await showRanking(page);
 
   await rankingRow(page, 'Hanauma Bay').click();
-  await expect(page.getByRole('heading', { level: 2, name: 'Hanauma Bay' })).toBeVisible();
+  await expect(spotHeading(page, 'Hanauma Bay')).toBeVisible();
   await clickHour(page, 30);
   await page.getByRole('button', { name: 'Back to list' }).click();
 

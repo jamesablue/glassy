@@ -1,0 +1,100 @@
+# Weekly dependency updates, grouped so they arrive as a few pull requests rather than one per
+# package. Commit messages follow Conventional Commits: chore(deps), chore(deps-dev), ci(deps).
+version: 2
+
+updates:
+  # The app.
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 10
+    commit-message:
+      prefix: chore
+      include: scope
+    labels: [type:chore]
+    ignore:
+      # Angular majors need `ng update` and its migrations, so they are done by hand.
+      - dependency-name: '@angular/*'
+        update-types: [version-update:semver-major]
+      - dependency-name: '@angular-devkit/*'
+        update-types: [version-update:semver-major]
+      - dependency-name: angular-eslint
+        update-types: [version-update:semver-major]
+      # Each Angular release supports a narrow TypeScript range; it moves with Angular.
+      - dependency-name: typescript
+        update-types: [version-update:semver-major, version-update:semver-minor]
+      # Node's types follow the Node version in .nvmrc.
+      - dependency-name: '@types/node'
+        update-types: [version-update:semver-major]
+    groups:
+      angular:
+        patterns:
+          - '@angular/*'
+          - '@angular-devkit/*'
+          - '@schematics/angular'
+          - 'angular-eslint'
+          - '@angular-eslint/*'
+      # A Playwright update can change how screenshots render: check the E2E visual job, and
+      # take new baselines (npm run e2e:visual:update) if it fails.
+      test-tooling:
+        patterns:
+          - '@playwright/*'
+          - 'playwright*'
+          - '@axe-core/*'
+          - 'axe-core'
+          - 'vitest'
+          - '@vitest/*'
+          - 'jsdom'
+          - 'fake-indexeddb'
+      lint-and-format:
+        patterns:
+          - 'eslint*'
+          - '@eslint/*'
+          - 'typescript-eslint'
+          - 'prettier'
+          - 'husky'
+          - 'lint-staged'
+
+  # The AWS CDK app in infra/, a package of its own.
+  - package-ecosystem: npm
+    directory: /infra
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: chore
+      include: scope
+    labels: [type:infra]
+    groups:
+      aws-cdk:
+        patterns:
+          - 'aws-cdk'
+          - 'aws-cdk-lib'
+          - 'constructs'
+          - 'cdk-nag'
+      dev-tooling:
+        patterns:
+          - '*'
+        exclude-patterns:
+          - 'aws-cdk'
+          - 'aws-cdk-lib'
+          - 'constructs'
+          - 'cdk-nag'
+
+  # Workflow actions. Dependabot keeps the SHA pins and their version comments in step.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    commit-message:
+      prefix: ci
+      include: scope
+    labels: [area:ci]
+    groups:
+      actions:
+        patterns:
+          - '*'

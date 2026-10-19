@@ -4,5 +4,5 @@
   "compilerOptions": {
     "types": ["node"]
   },
-  "include": ["e2e/**/*.ts", "playwright.config.ts"]
+  "include": ["e2e/**/*.ts", "e2e/**/*.mts", "playwright.config.ts", "playwright.merge.config.ts"]
 }

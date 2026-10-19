@@ -101,7 +101,7 @@
             "runnerConfig": "vitest-base.config.mts",
             "coverageInclude": ["src/app/**/*.ts"],
             "coverageExclude": ["src/app/**/*.spec.ts"],
-            "coverageReporters": ["text-summary", "html", "lcov"]
+            "coverageReporters": ["text-summary", "html", "lcov", "json-summary"]
           }
         },
         "lint": {
@@ -111,8 +111,10 @@
               "src/**/*.ts",
               "src/**/*.html",
               "e2e/**/*.ts",
+              "e2e/**/*.mts",
               "scripts/**/*.ts",
-              "playwright.config.ts"
+              "playwright.config.ts",
+              "playwright.merge.config.ts"
             ]
           }
         }

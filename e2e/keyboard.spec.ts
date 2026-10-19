@@ -1,11 +1,18 @@
-import { expect, test, type Page } from '@playwright/test';
-import { menuButton, ranking, rankingHeader, rankingRow, timeline } from './support/glassy';
-import { serveOffline } from './support/offline';
+import {
+  menuButton,
+  pointReadout,
+  ranking,
+  rankingHeader,
+  rankingRow,
+  SPOT_COUNT,
+  spotHeading,
+  spotPin,
+  timeline,
+  waitForForecast,
+} from './support/glassy';
+import { expect, test, type Page } from './support/test';
 
-test.beforeEach(async ({ page, isMobile }) => {
-  test.skip(isMobile, 'Keyboard use is a desktop scenario');
-  await serveOffline(page);
-});
+test.skip(({ isMobile }) => isMobile, 'Keyboard use is a desktop scenario');
 
 /** A short name for the focused element: its accessible name or text, and its role. */
 function focused(page: Page): Promise<string> {
@@ -32,7 +39,7 @@ async function tabUntil(page: Page, matches: RegExp, limit = 80): Promise<string
 
 test('Tab goes through the panel, the menu, the timeline and then the map', async ({ page }) => {
   await page.goto('/');
-  await expect(ranking(page).getByRole('listitem')).toHaveCount(25);
+  await expect(ranking(page).getByRole('listitem')).toHaveCount(SPOT_COUNT);
 
   const stops = await tabUntil(page, /^button: .*, (Excellent|Good|Fair|Poor|Hazardous), surf/);
   const first = (pattern: RegExp): number => stops.findIndex((stop) => pattern.test(stop));
@@ -55,7 +62,7 @@ test('a ranking row opens with Enter, closes with Escape, and the timeline moves
   page,
 }) => {
   await page.goto('/');
-  await expect(ranking(page).getByRole('listitem')).toHaveCount(25);
+  await expect(ranking(page).getByRole('listitem')).toHaveCount(SPOT_COUNT);
   await tabUntil(page, /^button: 1\D/);
   const spot = (await page.locator(':focus .name').textContent()) ?? '';
   const row = rankingRow(page, spot);
@@ -65,7 +72,7 @@ test('a ranking row opens with Enter, closes with Escape, and the timeline moves
   await expect(row).not.toHaveCSS('outline-style', 'none');
 
   await page.keyboard.press('Enter');
-  const heading = page.getByRole('heading', { level: 2, name: spot });
+  const heading = spotHeading(page, spot);
   await expect(heading).toBeVisible();
   await expect(page.getByRole('button', { name: 'Back to list' })).toBeFocused();
 
@@ -109,19 +116,19 @@ test('the map pans with the arrows without moving the timeline, and Enter reads 
   page,
 }) => {
   await page.goto('/');
-  await expect(page.locator('glassy-spot-pin button')).toHaveCount(25);
+  await waitForForecast(page);
   const map = page.getByRole('main', { name: 'Forecast map' });
   await map.focus();
   await expect(map).toHaveCSS('outline-style', 'solid');
 
-  const pin = page.locator('glassy-map').getByRole('button', { name: /^Hanauma Bay/ });
+  const pin = spotPin(page, 'Hanauma Bay');
   const before = await pin.boundingBox();
   await page.keyboard.press('ArrowLeft');
   await expect.poll(async () => (await pin.boundingBox())?.x).not.toBe(before?.x);
   await expect(timeline(page)).toHaveAttribute('aria-valuetext', 'Sun 8 AM');
 
   await page.keyboard.press('Enter');
-  await expect(page.locator('.leaflet-popup glassy-point-readout')).toBeVisible();
+  await expect(pointReadout(page)).toBeVisible();
   await page.keyboard.press('Escape');
-  await expect(page.locator('.leaflet-popup glassy-point-readout')).toBeHidden();
+  await expect(pointReadout(page)).toBeHidden();
 });

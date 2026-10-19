@@ -2,6 +2,9 @@ import { expect, type Locator, type Page } from '@playwright/test';
 import expected from '../../src/testing/fixtures/spot-forecast.expected.json';
 import { OAHU_SPOTS } from '../../src/app/domain/spots';
 
+/** How many spots the app ranks and pins: the whole catalog. */
+export const SPOT_COUNT = OAHU_SPOTS.length;
+
 /** Problems the page reported: console errors and uncaught exceptions. */
 export function collectErrors(page: Page): string[] {
   const errors: string[] = [];
@@ -70,6 +73,48 @@ export function menuButton(page: Page, name: string): Locator {
 /** The legend's unit cell. */
 export function legendUnit(page: Page): Locator {
   return page.locator('glassy-legend .unit');
+}
+
+/** The legend's colour stops, or its depth classes on the depth layer. */
+export function legendItems(page: Page): Locator {
+  return page.locator('glassy-legend li');
+}
+
+/** Every spot pin on the map. */
+export function spotPins(page: Page): Locator {
+  return page.locator('glassy-spot-pin button');
+}
+
+/**
+ * A spot's pin, found the way a screen reader user would: by its name, which starts the label. The
+ * ranking has a button per spot too, so the search stays on the map.
+ */
+export function spotPin(page: Page, name: string): Locator {
+  return page.locator('glassy-map').getByRole('button', { name: new RegExp(`^${escape(name)}`) });
+}
+
+/** Waits until the forecast has loaded and every spot has its pin on the map. */
+export async function waitForForecast(page: Page): Promise<void> {
+  await expect(spotPins(page)).toHaveCount(SPOT_COUNT);
+}
+
+/** The heading of the open spot's details. */
+export function spotHeading(page: Page, name: string): Locator {
+  return page.getByRole('heading', { level: 2, name });
+}
+
+/** The forecast and depth readout the map shows where it was tapped. */
+export function pointReadout(page: Page): Locator {
+  return page.locator('.leaflet-popup glassy-point-readout');
+}
+
+/**
+ * Taps open sea at the top of the screen, clear of the panels around the map. On the recorded
+ * forecast the depth there is NOAA's Hanauma Bay recording (see `serveRecordedBathymetry`).
+ */
+export async function tapOpenSea(page: Page): Promise<void> {
+  const width = page.viewportSize()?.width ?? 0;
+  await page.mouse.click(width / 2, 20);
 }
 
 function escape(text: string): string {

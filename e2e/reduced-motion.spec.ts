@@ -1,6 +1,12 @@
-import { expect, test, type Page } from '@playwright/test';
-import { rankingHeader, rankingRow, showRanking } from './support/glassy';
-import { serveOffline } from './support/offline';
+import {
+  rankingHeader,
+  rankingRow,
+  showRanking,
+  spotHeading,
+  spotPin,
+  waitForForecast,
+} from './support/glassy';
+import { expect, test, type Page } from './support/test';
 
 /** How much has been drawn on the particle canvas: the sum of its alpha channel. */
 function particleInk(page: Page): Promise<number> {
@@ -15,17 +21,10 @@ function particleInk(page: Page): Promise<number> {
 
 /** Where a spot's pin is on screen. */
 async function pinPosition(page: Page, name: string): Promise<{ x: number; y: number }> {
-  const box = await page
-    .locator('glassy-map')
-    .getByRole('button', { name: new RegExp(`^${name}`) })
-    .boundingBox();
+  const box = await spotPin(page, name).boundingBox();
   if (!box) throw new Error(`${name} is not on screen`);
   return { x: Math.round(box.x), y: Math.round(box.y) };
 }
-
-test.beforeEach(async ({ page }) => {
-  await serveOffline(page);
-});
 
 test.describe('with motion', () => {
   test('animates the particles and flies to a selected spot', async ({ page }) => {
@@ -45,7 +44,7 @@ test.describe('with reduced motion', () => {
 
   test('draws no particles', async ({ page }) => {
     await page.goto('/');
-    await expect(page.locator('glassy-spot-pin button')).toHaveCount(25);
+    await waitForForecast(page);
     await page.waitForTimeout(800);
     expect(await particleInk(page)).toBe(0);
   });
@@ -54,7 +53,7 @@ test.describe('with reduced motion', () => {
     await page.goto('/');
     await showRanking(page);
     await rankingRow(page, 'Hanauma Bay').click();
-    await expect(page.getByRole('heading', { level: 2, name: 'Hanauma Bay' })).toBeVisible();
+    await expect(spotHeading(page, 'Hanauma Bay')).toBeVisible();
 
     const landed = await pinPosition(page, 'Hanauma Bay');
     await page.waitForTimeout(1200);

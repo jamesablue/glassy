@@ -27,12 +27,14 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "e2e": "playwright test",
+    "e2e:visual": "bash scripts/e2e-visual.sh",
+    "e2e:visual:update": "bash scripts/e2e-visual.sh --update-snapshots",
     "fixtures:record": "tsx scripts/record-fixtures.ts",
     "fixtures:expected": "node scripts/generate-expected-scores.mjs",
     "prepare": "husky"
   },
   "lint-staged": {
-    "*.{ts,html}": [
+    "*.{ts,mts,html}": [
       "eslint --fix",
       "prettier --write"
     ],
