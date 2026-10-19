@@ -8,6 +8,7 @@ import { provideRouter } from '@angular/router';
 
 import { routes } from './app.routes';
 import { provideGlassyConfig } from './core';
+import { provideNoaaTileSources } from './data/noaa/noaa-terrain-tile-sources';
 import { provideUrlStateSync } from './state';
 
 export const appConfig: ApplicationConfig = {
@@ -17,6 +18,7 @@ export const appConfig: ApplicationConfig = {
     provideRouter(routes),
     provideHttpClient(withFetch()),
     provideGlassyConfig(),
+    provideNoaaTileSources(),
     provideUrlStateSync(),
   ],
 };
