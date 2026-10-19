@@ -1,0 +1,51 @@
+<div class="top">
+  <button #back type="button" class="back" aria-label="Back to list" (click)="close()">
+    <glassy-icon name="back" />
+  </button>
+  <div>
+    <h2 class="name">{{ spot()?.name }}</h2>
+    <p class="meta">{{ meta() }}</p>
+  </div>
+</div>
+
+<div class="scroll">
+  @if (detail(); as detail) {
+    <div class="rating-row">
+      <glassy-rating-badge [rating]="detail.rating" />
+      <p class="score">
+        <b>{{ scoreText() }}</b
+        ><span class="out-of">/10</span>
+      </p>
+      <p class="time">
+        {{ selectedTime() | hstTime }}
+        @if (!isDaylight()) {
+          <br />after dark
+        }
+      </p>
+    </div>
+
+    <glassy-hazard-notice
+      [hazards]="detail.hazards"
+      [conditions]="detail.conditions"
+      [heightUnit]="units().height"
+    />
+    <glassy-conditions-grid [conditions]="detail.conditions" [units]="units()" />
+
+    <section class="trend" aria-labelledby="spot-trend-title">
+      <h3 id="spot-trend-title" class="trend-title">
+        {{ chartTitle() }} <span class="legend">bars = snorkel score · line = surf</span>
+      </h3>
+      <glassy-score-trend-chart
+        [points]="detail.trend"
+        [selectedHour]="selectedHour()"
+        [heightUnit]="units().height"
+        (hourSelect)="seek($event)"
+      />
+      <glassy-best-window [window]="detail.bestWindow" [times]="times()" />
+    </section>
+
+    <p class="notes">{{ detail.spot.notes }}</p>
+  } @else {
+    <p class="waiting">Conditions appear here once the forecast loads.</p>
+  }
+</div>

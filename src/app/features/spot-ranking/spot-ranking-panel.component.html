@@ -1,0 +1,34 @@
+<h2 class="heading">
+  <button
+    type="button"
+    class="head"
+    aria-controls="spot-ranking-body"
+    [attr.aria-expanded]="expanded()"
+    (click)="toggle()"
+  >
+    <span>
+      <span class="title">Best snorkeling</span>
+      <span class="time">{{ timeText() }}</span>
+    </span>
+    <glassy-icon name="chevron" class="chevron" />
+  </button>
+</h2>
+
+<div id="spot-ranking-body" class="body" [hidden]="!expanded()">
+  <glassy-region-filter class="filters" [value]="region()" (valueChange)="setRegion($event)" />
+  <ol class="list" aria-label="Spots from best to worst">
+    @for (entry of ranked(); track entry.spot.id) {
+      <li>
+        <glassy-spot-ranking-row
+          [entry]="entry"
+          [units]="units()"
+          [hovered]="entry.spot.id === hoveredId()"
+          (spotSelect)="select($event)"
+          (hoverChange)="hover(entry.spot.id, $event)"
+        />
+      </li>
+    } @empty {
+      <li class="empty">Spots appear here once the forecast loads.</li>
+    }
+  </ol>
+</div>

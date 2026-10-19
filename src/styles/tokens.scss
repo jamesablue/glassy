@@ -17,6 +17,14 @@
   --muted: rgba(244, 245, 247, 0.62);
   --accent: #ff5b4f;
   --accent-2: #5eead4;
+  // Text on light fills: rating colours, selected chips and segments, the timeline handle
+  --on-light: #111;
+
+  // Warnings and errors
+  --danger-bg: rgba(239, 68, 68, 0.15);
+  --danger-line: rgba(239, 68, 68, 0.45);
+  --danger-text: #fecaca;
+  --toast-bg: #2a1515;
 
   // Shadows: text over the map, small floating controls, panels, popovers
   --text-shadow: 0 0 3px rgba(0, 0, 0, 0.9), 0 0 8px rgba(0, 0, 0, 0.5);
@@ -30,6 +38,7 @@
   --side-width: 320px;
 }
 
+// The phone layout. Media queries cannot read custom properties, so components repeat the 760px.
 @media (max-width: 760px) {
   :root {
     --timeline-height: 44px;

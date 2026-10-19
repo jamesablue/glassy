@@ -1,0 +1,58 @@
+:host {
+  display: block;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  width: 100%;
+  padding: 7px 8px;
+  border-radius: 8px;
+  text-align: left;
+
+  &:hover,
+  &.hovered {
+    background: var(--panel-hover);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--accent-2);
+    outline-offset: -2px;
+  }
+}
+
+.rank {
+  color: var(--muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.main {
+  min-width: 0;
+}
+
+.name,
+.sub {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.name {
+  font-weight: 600;
+}
+
+.sub {
+  color: var(--muted);
+  font-size: 11.5px;
+
+  glassy-direction-arrow {
+    width: 10px;
+    height: 10px;
+    vertical-align: -1px;
+  }
+}

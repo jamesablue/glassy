@@ -23,7 +23,12 @@ const PINS: readonly SpotPin[] = OAHU_SPOTS.map((spot, index) => ({
   template: `
     <glassy-map>
       @if (shown()) {
-        <glassy-spot-markers [pins]="pins()" (pinSelect)="selected.push($event)" />
+        <glassy-spot-markers
+          [pins]="pins()"
+          [hoveredId]="hoveredId()"
+          (pinSelect)="selected.push($event)"
+          (pinHover)="hovers.push($event)"
+        />
       }
     </glassy-map>
   `,
@@ -31,7 +36,9 @@ const PINS: readonly SpotPin[] = OAHU_SPOTS.map((spot, index) => ({
 class HostComponent {
   readonly shown = signal(true);
   readonly pins = signal<readonly SpotPin[]>(PINS);
+  readonly hoveredId = signal<string | null>(null);
   readonly selected: string[] = [];
+  readonly hovers: (string | null)[] = [];
 }
 
 describe('SpotMarkersComponent', () => {
@@ -107,6 +114,32 @@ describe('SpotMarkersComponent', () => {
     const { host } = await setup();
     pinButton('Hanauma Bay').click();
     expect(host.selected).toEqual(['hanauma']);
+  });
+
+  it('reports the spot whose pin the pointer is over', async () => {
+    const { host } = await setup();
+    pinButton('Hanauma Bay').dispatchEvent(new MouseEvent('mouseenter'));
+    pinButton('Hanauma Bay').dispatchEvent(new MouseEvent('mouseleave'));
+    expect(host.hovers).toEqual(['hanauma', null]);
+  });
+
+  it('highlights the hovered spot’s pin and lifts it above its neighbours', async () => {
+    const { fixture, host } = await setup();
+    const marker = (name: string): HTMLElement | null =>
+      pinButton(name).closest<HTMLElement>('.leaflet-marker-icon');
+    const zIndex = (name: string): number => Number(marker(name)?.style.zIndex);
+    const resting = zIndex('Hanauma Bay');
+
+    host.hoveredId.set('hanauma');
+    update(fixture);
+    expect(pinButton('Hanauma Bay').classList.contains('hovered')).toBe(true);
+    expect(pinButton('Kaimana').classList.contains('hovered')).toBe(false);
+    expect(zIndex('Hanauma Bay')).toBe(resting + 1000);
+
+    host.hoveredId.set('kaimana');
+    update(fixture);
+    expect(pinButton('Hanauma Bay').classList.contains('hovered')).toBe(false);
+    expect(zIndex('Hanauma Bay')).toBe(resting);
   });
 
   it('shows the surf in the units the user picked', async () => {

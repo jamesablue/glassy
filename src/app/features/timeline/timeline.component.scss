@@ -1,0 +1,168 @@
+:host {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: var(--timeline-height);
+  padding: 0 12px;
+  background: linear-gradient(to top, rgba(10, 11, 14, 0.92), rgba(10, 11, 14, 0.75));
+  backdrop-filter: blur(8px);
+}
+
+button:focus-visible,
+.track:focus-visible {
+  outline: 2px solid var(--accent-2);
+  outline-offset: 2px;
+}
+
+.play {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.4);
+
+  glassy-icon {
+    width: 16px;
+    height: 16px;
+  }
+}
+
+.now {
+  flex: none;
+  padding: 5px 11px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.1);
+  font-size: 12px;
+  font-weight: 700;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.18);
+  }
+}
+
+.track {
+  position: relative;
+  flex: 1;
+  height: 100%;
+  cursor: pointer;
+  touch-action: none;
+  user-select: none;
+
+  &:focus-visible {
+    outline-offset: -2px;
+    border-radius: 4px;
+  }
+}
+
+// A daylight strip with the nights shaded over it.
+.nights {
+  position: absolute;
+  top: 10px;
+  right: 0;
+  left: 0;
+  z-index: 0;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: rgba(255, 214, 102, 0.45);
+}
+
+.night {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.days {
+  position: absolute;
+  inset: 0;
+}
+
+.day {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  align-items: flex-end;
+  padding: 0 0 8px 8px;
+  overflow: hidden;
+  border-left: 1px solid rgba(255, 255, 255, 0.14);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+
+  &:first-child {
+    border-left: 0;
+  }
+
+  &.today {
+    color: var(--text);
+  }
+}
+
+.progress {
+  position: absolute;
+  top: 10px;
+  left: 0;
+  height: 6px;
+  border-radius: 3px 0 0 3px;
+  background: rgba(255, 255, 255, 0.25);
+  pointer-events: none;
+}
+
+.now-mark {
+  position: absolute;
+  top: 6px;
+  width: 2px;
+  height: 14px;
+  border-radius: 1px;
+  background: var(--accent-2);
+  pointer-events: none;
+}
+
+// Centred on the selected hour, but never past either end of the track. Half the widest label
+// ("Wed 12 PM") is enough room to keep any label inside.
+.handle {
+  --label-half-width: 40px;
+
+  position: absolute;
+  top: 13px;
+  left: clamp(var(--label-half-width), var(--position), 100% - var(--label-half-width));
+  z-index: 2;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.handle-label {
+  display: block;
+  padding: 3px 9px;
+  border-radius: 12px;
+  background: #fff;
+  color: var(--on-light);
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.5);
+}
+
+@media (max-width: 760px) {
+  .now {
+    display: none;
+  }
+
+  .day {
+    padding-left: 5px;
+    font-size: 11px;
+  }
+}

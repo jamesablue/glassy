@@ -1,0 +1,58 @@
+:host {
+  display: block;
+}
+
+// Hairline gaps between cells, drawn by the grid's background.
+.stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  margin: 0;
+  overflow: hidden;
+  border-radius: 8px;
+  background: var(--line);
+}
+
+.stat {
+  min-width: 0;
+  padding: 8px 10px;
+  background: var(--panel-solid);
+
+  &.wide {
+    grid-column: span 2;
+  }
+}
+
+dt {
+  color: var(--muted);
+  font-size: 11px;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+}
+
+dd {
+  margin: 0;
+}
+
+.value {
+  font-size: 15px;
+  font-weight: 700;
+  white-space: nowrap;
+
+  small {
+    color: var(--muted);
+    font-size: 11.5px;
+    font-weight: 500;
+  }
+}
+
+.detail {
+  color: var(--muted);
+  font-size: 11.5px;
+}
+
+glassy-direction-arrow {
+  width: 13px;
+  height: 13px;
+  vertical-align: -2px;
+}

@@ -12,10 +12,13 @@ function collectErrors(page: Page): string[] {
   return errors;
 }
 
-/** A spot's pin, found the way a screen reader user would: by its name, which starts the label. */
+/**
+ * A spot's pin, found the way a screen reader user would: by its name, which starts the label. The
+ * ranking has a button per spot too, so the search stays on the map.
+ */
 function pin(page: Page, name: string): Locator {
   const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  return page.getByRole('button', { name: new RegExp(`^${escaped}`) });
+  return page.locator('glassy-map').getByRole('button', { name: new RegExp(`^${escaped}`) });
 }
 
 /** The rendering rule a NOAA tile request asks for, such as "Hillshade" or "Colormap". */
@@ -55,10 +58,11 @@ test.describe('map', () => {
 
   test('reads out the forecast and depth where the sea is tapped', async ({ page }) => {
     await page.goto('/');
-    // Tap open water a little south of Hanauma Bay's pin; the dot's centre is 8 × 11 px in.
+    // Tap open water a little south of Hanauma Bay's pin, above the legend; the dot's centre is
+    // 8 × 11 px in.
     const box = await pin(page, 'Hanauma Bay').boundingBox();
     if (!box) throw new Error('Hanauma Bay pin is not on screen');
-    await page.mouse.click(box.x + 8, box.y + 11 + 60);
+    await page.mouse.click(box.x + 8, box.y + 11 + 40);
 
     const readout = page.locator('.leaflet-popup glassy-point-readout');
     await expect(readout).toBeVisible();
@@ -93,7 +97,9 @@ test.describe('map', () => {
     const errors = collectErrors(page);
     await page.goto('/?layer=wind');
     await expect(page.locator('glassy-spot-pin button')).toHaveCount(25);
-    await page.mouse.click(40, 400);
+    // Open sea at the top of the screen, clear of the panels around the map.
+    const width = page.viewportSize()?.width ?? 0;
+    await page.mouse.click(width / 2, 20);
     await expect(page.locator('.leaflet-popup glassy-point-readout')).toBeVisible();
 
     expect(errors).toEqual([]);

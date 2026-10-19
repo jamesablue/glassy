@@ -70,6 +70,8 @@ export class TimelineStore {
   readonly selectedHour = this.hour.asReadonly();
   /** Start of the selected hour, Unix seconds, or `undefined` before a forecast loads. */
   readonly selectedTime = computed<number | undefined>(() => this.times()[this.hour()]);
+  /** Whether the selected hour is in daylight. Before a forecast loads there is no night to flag. */
+  readonly isDaylight = computed(() => this.forecast.bundle()?.isDay[this.hour()] ?? true);
   readonly isPlaying = this.playing.asReadonly();
 
   constructor() {

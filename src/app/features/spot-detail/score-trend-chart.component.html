@@ -1,0 +1,88 @@
+@let g = geometry();
+<div
+  class="plot"
+  (pointerdown)="onPointerDown($event)"
+  (pointermove)="onPointerMove($event)"
+  (pointerup)="onPointerEnd()"
+  (pointercancel)="onPointerEnd()"
+>
+  <svg
+    role="img"
+    preserveAspectRatio="none"
+    [attr.viewBox]="viewBox()"
+    [attr.aria-labelledby]="labelledBy"
+  >
+    <title [id]="titleId">Snorkel score and surf by hour</title>
+    <desc [id]="descriptionId">
+      Bars show the snorkel score out of 10 for each hour, dimmed at night, and the line shows the
+      surf. Day by day figures follow in a table.
+    </desc>
+    @for (night of g.nights; track night.start) {
+      <rect
+        class="night"
+        y="0"
+        [attr.x]="night.start"
+        [attr.width]="night.count"
+        [attr.height]="chart.height"
+      />
+    }
+    @for (bar of g.bars; track bar.hour) {
+      <rect
+        class="bar"
+        [class.dim]="!bar.isDay"
+        [attr.x]="bar.x"
+        [attr.y]="bar.y"
+        [attr.width]="bar.width"
+        [attr.height]="bar.height"
+        [attr.fill]="bar.color"
+      />
+    }
+    <path class="surf" [attr.d]="g.surfPath" />
+    @for (day of separators(); track day.start) {
+      <line
+        class="separator"
+        y1="0"
+        [attr.x1]="day.start"
+        [attr.x2]="day.start"
+        [attr.y2]="chart.height"
+      />
+    }
+    <line
+      class="marker"
+      y1="0"
+      [attr.x1]="markerX()"
+      [attr.x2]="markerX()"
+      [attr.y2]="chart.bottom"
+    />
+  </svg>
+  <span class="surf-max" aria-hidden="true">
+    surf max {{ g.maxSurf | height: heightUnit() }} {{ heightUnit() }}
+  </span>
+  @for (day of g.days; track day.start) {
+    <span class="day" aria-hidden="true" [style.left.%]="day.left">{{ day.label }}</span>
+  }
+</div>
+
+<table class="visually-hidden">
+  <caption>
+    Snorkel score and surf by day
+  </caption>
+  <thead>
+    <tr>
+      <th scope="col">Day</th>
+      <th scope="col">Best score</th>
+      <th scope="col">Lowest score</th>
+      <th scope="col">Biggest surf</th>
+    </tr>
+  </thead>
+  <tbody>
+    @for (day of summary(); track day.day) {
+      <tr>
+        <th scope="row">{{ day.day }}</th>
+        <td>{{ day.best }} at {{ day.bestTime | hstTime: 'hour' }}</td>
+        <td>{{ day.lowest }}</td>
+        <td>{{ day.maxSurf | surfRange: heightUnit() }}</td>
+      </tr>
+    }
+  </tbody>
+</table>

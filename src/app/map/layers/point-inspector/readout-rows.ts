@@ -4,8 +4,11 @@ import {
   compassPoint,
   formatDepth,
   formatHeight,
+  formatPeriod,
   formatSpeed,
+  NO_VALUE,
   SPEED_LABELS,
+  travelBearing,
 } from '../../../domain/units';
 import type { ElevationReading, PointReading } from '../../../state';
 
@@ -16,8 +19,6 @@ export interface ReadoutRow {
   /** Compass bearing the value travels towards, for its arrow. Absent for values with no direction. */
   readonly heading?: number;
 }
-
-const MISSING = '—';
 
 /** Coordinates to four decimals (about 11 m) and the hour shown, for example "21.2690°, -157.6936° · Sun 3 PM". */
 export function readoutTitle({ point, time }: PointReading): string {
@@ -49,7 +50,7 @@ export function elevationText(elevation: ElevationReading, unit: HeightUnit): st
       return 'loading…';
     case 'no-data':
     case 'error':
-      return MISSING;
+      return NO_VALUE;
     case 'ready':
       return elevation.meters < 0
         ? formatDepth(-elevation.meters, unit)
@@ -82,7 +83,7 @@ function forecastRows(sample: PointSample, units: UnitSettings): ReadoutRow[] {
 }
 
 function waveText(height: number, period: number, unit: HeightUnit): string {
-  return `${formatHeight(height, unit)} ${unit} · ${Math.round(period)}s`;
+  return `${formatHeight(height, unit)} ${unit} · ${formatPeriod(period)}s`;
 }
 
 /**
@@ -95,6 +96,6 @@ function withHeading(
   from: number,
   required: readonly number[],
 ): ReadoutRow {
-  if (!required.every(Number.isFinite)) return { label, value: MISSING };
-  return Number.isFinite(from) ? { label, value, heading: (from + 180) % 360 } : { label, value };
+  if (!required.every(Number.isFinite)) return { label, value: NO_VALUE };
+  return Number.isFinite(from) ? { label, value, heading: travelBearing(from) } : { label, value };
 }

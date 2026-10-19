@@ -1,0 +1,28 @@
+@use 'menu-button' as menu;
+
+:host {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  z-index: 1000;
+}
+
+nav {
+  @include menu.menu-column;
+}
+
+// A gap between the layers and everything else.
+.toggles {
+  margin-top: 12px;
+}
+
+button {
+  @include menu.menu-button;
+}
+
+@media (max-width: 760px) {
+  :host {
+    top: 8px;
+    right: 6px;
+  }
+}

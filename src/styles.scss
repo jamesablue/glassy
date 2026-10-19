@@ -27,3 +27,31 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
 }
+
+// Buttons start bare; each component styles its own.
+button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+// Components set their own display, which would otherwise beat the browser's `[hidden]` rule.
+[hidden] {
+  display: none !important;
+}
+
+// Text for screen readers only.
+.visually-hidden {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  margin: -1px !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  clip-path: inset(50%) !important;
+  border: 0 !important;
+  white-space: nowrap !important;
+}

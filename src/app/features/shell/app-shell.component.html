@@ -1,0 +1,33 @@
+<glassy-brand-badge />
+
+<glassy-panel class="side">
+  <glassy-spot-ranking-panel [hidden]="detailOpen()" />
+  <!-- Loaded the first time a spot opens (or ahead of time when the browser is idle). -->
+  @defer (when detailOpen(); prefetch on idle) {
+    @if (detailOpen()) {
+      <glassy-spot-detail-panel />
+    }
+  } @loading {
+    <p class="side-loading">Loading…</p>
+  }
+</glassy-panel>
+
+<glassy-layer-menu />
+<glassy-units-popover />
+<glassy-about-popover />
+<glassy-legend [spec]="legendSpec()" />
+<glassy-timeline />
+
+@if (loading()) {
+  <glassy-loading-overlay />
+}
+@if (notice(); as notice) {
+  <glassy-notification-toast
+    [message]="notice.message"
+    [actionLabel]="notice.actionLabel"
+    [urgent]="notice.urgent"
+    [autoHideMs]="notice.autoHideMs"
+    (action)="retry()"
+    (dismiss)="dismissNotice()"
+  />
+}

@@ -1,7 +1,7 @@
 import { Component, computed, inject } from '@angular/core';
-import { RouterOutlet } from '@angular/router';
 import { PALETTES } from './domain/color';
 import type { LatLon } from './domain/models';
+import { AppShellComponent } from './features';
 import {
   BasemapLayerComponent,
   DepthLayerComponent,
@@ -15,13 +15,14 @@ import {
 import { ConditionsStore, ForecastStore, MapUiStore, TimelineStore } from './state';
 
 /**
- * The app root: the full-screen map with its layers bound to the stores, and the brand. The feature
- * panels join it in the next phase, beside the map rather than inside it.
+ * The app root: the full-screen map with its layers bound to the stores, and the feature shell that
+ * floats over it. The two sit side by side and share nothing but the stores, so neither the map nor
+ * the features layer needs to import the other.
  */
 @Component({
   selector: 'glassy-root',
   imports: [
-    RouterOutlet,
+    AppShellComponent,
     MapHostComponent,
     BasemapLayerComponent,
     TerrainLayerComponent,
@@ -35,9 +36,6 @@ import { ConditionsStore, ForecastStore, MapUiStore, TimelineStore } from './sta
   styleUrl: './app.scss',
 })
 export class App {
-  protected readonly name = 'Glassy';
-  protected readonly tagline = 'Oahu snorkel forecast';
-
   private readonly forecast = inject(ForecastStore);
   private readonly timeline = inject(TimelineStore);
   protected readonly mapUi = inject(MapUiStore);
@@ -68,5 +66,9 @@ export class App {
 
   protected selectSpot(id: string): void {
     this.mapUi.selectSpot(id);
+  }
+
+  protected hoverSpot(id: string | null): void {
+    this.mapUi.hoverSpot(id);
   }
 }

@@ -1,0 +1,18 @@
+@use 'menu-button' as menu;
+
+:host {
+  @include menu.menu-column;
+}
+
+button {
+  @include menu.menu-button;
+
+  .icon {
+    opacity: 0.55;
+  }
+
+  &.on .icon {
+    opacity: 1;
+    box-shadow: 0 0 0 2px var(--accent-2) inset;
+  }
+}

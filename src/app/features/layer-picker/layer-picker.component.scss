@@ -1,0 +1,24 @@
+@use 'menu-button' as menu;
+
+:host {
+  @include menu.menu-column;
+}
+
+button {
+  @include menu.menu-button;
+
+  &.active {
+    background: var(--panel);
+    text-shadow: none;
+
+    .icon {
+      background: var(--accent);
+    }
+  }
+}
+
+@media (max-width: 760px) {
+  button.active {
+    background: none;
+  }
+}
