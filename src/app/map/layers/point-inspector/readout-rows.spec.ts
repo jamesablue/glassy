@@ -1,6 +1,13 @@
 import type { PointSample, UnitSettings } from '../../../domain/models';
 import type { PointReading } from '../../../state';
-import { elevationText, readoutRows, readoutTitle } from './readout-rows';
+import {
+  DEPTH_LOOKUP_FAILED,
+  depthNote,
+  elevationText,
+  NO_DEPTH_DATA,
+  readoutRows,
+  readoutTitle,
+} from './readout-rows';
 
 describe('point readout', () => {
   const FEET: UnitSettings = { height: 'ft', speed: 'kt', temperature: 'f' };
@@ -92,6 +99,23 @@ describe('point readout', () => {
       expect(elevationText({ status: 'loading' }, 'ft')).toBe('loading…');
       expect(elevationText({ status: 'no-data' }, 'ft')).toBe('—');
       expect(elevationText({ status: 'error' }, 'ft')).toBe('—');
+    });
+  });
+
+  describe('depthNote', () => {
+    it('says why there is no depth', () => {
+      expect(depthNote({ status: 'no-data' })).toBe(NO_DEPTH_DATA);
+      expect(depthNote({ status: 'error' })).toBe(DEPTH_LOOKUP_FAILED);
+    });
+
+    it('has nothing to add to a depth or a lookup under way', () => {
+      expect(depthNote({ status: 'ready', meters: -8.5 })).toBeUndefined();
+      expect(depthNote({ status: 'loading' })).toBeUndefined();
+    });
+
+    it('goes with the depth row', () => {
+      const rows = readoutRows(reading({ elevation: { status: 'error' } }), FEET);
+      expect(rows.at(-1)).toEqual({ label: 'Depth', value: '—', note: DEPTH_LOOKUP_FAILED });
     });
   });
 });

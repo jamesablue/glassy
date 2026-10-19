@@ -1,4 +1,4 @@
-import { computed, inject, Injectable, signal } from '@angular/core';
+import { computed, effect, inject, Injectable, signal, untracked } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { tap } from 'rxjs';
 import { RateLimitedError, toForecastError, type ForecastError } from '../data/forecast-errors';
@@ -8,6 +8,7 @@ import {
   type LoadOptions,
 } from '../data/forecast.repository';
 import type { ForecastBundle } from '../domain/models';
+import { ConnectivityStore } from './connectivity.store';
 
 /**
  * - `loading`: a load is in flight (the previous forecast, if any, is still available)
@@ -28,7 +29,8 @@ export type ForecastSource = ForecastResult['source'];
  * results to a status the UI can switch on.
  *
  * Once a forecast has loaded it stays available while a reload runs and after a reload fails, so
- * the map never goes blank because a refresh did not work out.
+ * the map never goes blank because a refresh did not work out. When the browser comes back online
+ * after a load failed (or left a stale forecast on show), it loads again by itself.
  */
 @Injectable({ providedIn: 'root' })
 export class ForecastStore {
@@ -68,6 +70,15 @@ export class ForecastStore {
    * your connection".
    */
   readonly isRateLimited = computed(() => this.error() instanceof RateLimitedError);
+
+  constructor() {
+    const connectivity = inject(ConnectivityStore);
+    effect(() => {
+      if (!connectivity.online()) return;
+      const status = untracked(this.status);
+      if (status === 'error' || status === 'stale') untracked(() => this.reload());
+    });
+  }
 
   /** Loads the forecast again from the network, skipping the cache, for an explicit refresh. */
   reload(): void {

@@ -1,5 +1,6 @@
 import { TestBed, type ComponentFixture } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
+import { installFakeDialog, type FakeDialog } from '../../../testing/fake-dialog';
 import { installFakePopover, type FakePopover } from '../../../testing/fake-popover';
 import {
   RECORDED_MORNING,
@@ -10,22 +11,25 @@ import {
   provideScriptedForecast,
   ScriptedForecastRepository,
 } from '../../../testing/state-providers';
+import { AppNotices } from '../../core/app-notices';
 import { ForecastStore, MapUiStore, SettingsStore, TimelineStore } from '../../state';
 import { UNITS_POPOVER_ID } from '../settings/units-popover.component';
 import { AppShellComponent } from './app-shell.component';
-import { NOTICE_AUTO_HIDE_MS } from './forecast-notice';
+import { NOTICE_AUTO_HIDE_MS } from './notices';
 import { NotificationToastComponent } from './notification-toast.component';
 
 describe('AppShellComponent', () => {
   const bundle = recordedForecastBundle();
   let repository: ScriptedForecastRepository;
   let fake: FakePopover;
+  let dialogs: FakeDialog;
   let fixture: ComponentFixture<AppShellComponent>;
   let element: HTMLElement;
 
   beforeEach(() => {
     localStorage.clear();
     fake = installFakePopover();
+    dialogs = installFakeDialog();
     repository = new ScriptedForecastRepository();
     TestBed.configureTestingModule({
       providers: provideScriptedForecast(repository, RECORDED_MORNING),
@@ -39,6 +43,7 @@ describe('AppShellComponent', () => {
   afterEach(() => {
     TestBed.inject(TimelineStore).pause();
     fake.restore();
+    dialogs.restore();
   });
 
   /** Answers the first load with the recorded forecast. */
@@ -66,6 +71,21 @@ describe('AppShellComponent', () => {
     expect(element.querySelector('glassy-timeline [role="slider"]')).not.toBeNull();
   });
 
+  it('puts everything in a named landmark, in the order Tab visits them', async () => {
+    await loaded();
+    const landmarks = Array.from(
+      element.querySelectorAll('header, nav, [role="complementary"], [role="region"]'),
+      (landmark) => landmark.getAttribute('aria-label') ?? landmark.tagName.toLowerCase(),
+    );
+    expect(landmarks).toEqual([
+      'header',
+      'Snorkel spots',
+      'Map controls',
+      'Map colours, ft',
+      'Forecast timeline',
+    ]);
+  });
+
   describe('loading', () => {
     it('covers the first load', async () => {
       expect(text('glassy-loading-overlay')).toBe('Loading forecast…');
@@ -74,12 +94,17 @@ describe('AppShellComponent', () => {
       expect(element.querySelector('glassy-loading-overlay')).toBeNull();
     });
 
-    it('keeps the forecast on show while it reloads', async () => {
+    it('keeps the forecast on show while it reloads, and says so', async () => {
       await loaded();
       TestBed.inject(ForecastStore).reload();
       TestBed.tick();
       expect(TestBed.inject(ForecastStore).status()).toBe('loading');
       expect(element.querySelector('glassy-loading-overlay')).toBeNull();
+      expect(text('glassy-notification-toast')).toBe('Refreshing the forecast…');
+
+      repository.succeed(bundle, RECORDED_MORNING);
+      await stable();
+      expect(toast()).toBeNull();
     });
   });
 
@@ -101,35 +126,141 @@ describe('AppShellComponent', () => {
       expect(toast()).toBeNull();
     });
 
-    it('offers to retry when nothing loads, and retries from the network', async () => {
+    const loadError = (): HTMLDialogElement | null =>
+      element.querySelector('glassy-load-error dialog');
+
+    it('fills the screen when nothing loads, and retries from the network', async () => {
       repository.fail('unavailable');
       await stable();
-      expect(toast()?.getAttribute('role')).toBe('alert');
-      expect(text('glassy-notification-toast')).toBe(
-        "Couldn't load the forecast. Check your connection and try again. Retry",
-      );
-
-      toast()?.querySelector('button')?.click();
-      fixture.detectChanges();
-      expect(repository.requests).toEqual([{}, { force: true }]);
+      expect(loadError()?.hasAttribute('open')).toBe(true);
+      expect(loadError()?.getAttribute('role')).toBe('alertdialog');
+      expect(text('glassy-load-error h2')).toBe("Couldn't load the forecast");
+      expect(text('glassy-load-error p')).toBe('Check your connection and try again.');
       expect(toast()).toBeNull();
 
+      loadError()?.querySelector('button')?.click();
+      fixture.detectChanges();
+      expect(repository.requests).toEqual([{}, { force: true }]);
+      expect(loadError()).toBeNull();
+      expect(element.querySelector('glassy-loading-overlay')).not.toBeNull();
+
       repository.fail('unavailable');
       await stable();
-      expect(toast()).not.toBeNull();
+      expect(loadError()).not.toBeNull();
+
+      loadError()?.querySelector('button')?.click();
+      TestBed.tick();
+      await loaded();
+      expect(loadError()).toBeNull();
+      expect(toast()).toBeNull();
     });
 
     it('explains a rate limit', async () => {
       repository.fail('rate-limited');
       await stable();
-      expect(text('glassy-notification-toast')).toBe(
-        'The forecast service is getting too many requests. Try again in a minute. Retry',
+      expect(text('glassy-load-error h2')).toBe('The forecast service is busy');
+      expect(text('glassy-load-error p')).toBe(
+        'Open-Meteo is getting too many requests right now. Try again in a minute.',
       );
+    });
+
+    it('leaves the error as a toast with Retry once the screen is closed with Escape', async () => {
+      repository.fail('unavailable');
+      await stable();
+      press('Escape');
+      await stable();
+
+      expect(loadError()).toBeNull();
+      expect(toast()?.getAttribute('role')).toBe('alert');
+      expect(text('glassy-notification-toast')).toBe(
+        "Couldn't load the forecast. Check your connection and try again. Retry",
+      );
+      toast()?.querySelector('button')?.click();
+      fixture.detectChanges();
+      expect(repository.requests).toEqual([{}, { force: true }]);
+    });
+
+    describe('offline', () => {
+      let onLine: ReturnType<typeof vi.spyOn>;
+
+      beforeEach(() => {
+        onLine = vi.spyOn(window.navigator, 'onLine', 'get').mockReturnValue(true);
+      });
+
+      afterEach(() => onLine.mockRestore());
+
+      /** The browser loses its connection or gets it back. A reload it starts is left waiting. */
+      const connection = (online: boolean): void => {
+        onLine.mockReturnValue(online);
+        window.dispatchEvent(new Event(online ? 'online' : 'offline'));
+        TestBed.tick();
+      };
+
+      it('says the forecast loads once the connection is back, and loads it then', async () => {
+        connection(false);
+        repository.fail('unavailable');
+        await stable();
+        expect(text('glassy-load-error h2')).toBe("You're offline");
+
+        connection(true);
+        expect(repository.requests).toEqual([{}, { force: true }]);
+        expect(loadError()).toBeNull();
+      });
+
+      it('says the forecast on show is all there is until then', async () => {
+        await loaded();
+        connection(false);
+        expect(text('glassy-notification-toast')).toBe(
+          "You're offline. Showing the forecast from Sun 8 AM; it refreshes when you're back online.",
+        );
+        connection(true);
+        expect(toast()).toBeNull();
+      });
     });
 
     it('stays quiet when the forecast is fresh', async () => {
       await loaded();
       expect(toast()).toBeNull();
+    });
+
+    describe('reported problems', () => {
+      beforeEach(loaded);
+
+      it('says map tiles are missing, politely, and lets it go', async () => {
+        TestBed.inject(AppNotices).raise('map-tiles-unavailable');
+        await stable();
+        expect(toast()?.getAttribute('role')).toBe('status');
+        expect(text('glassy-notification-toast')).toBe(
+          "Map tiles aren't loading right now. The forecast still works.",
+        );
+
+        const notice = fixture.debugElement.query(By.directive(NotificationToastComponent))
+          .componentInstance as NotificationToastComponent;
+        notice.dismiss.emit();
+        await stable();
+        expect(toast()).toBeNull();
+      });
+
+      it('owns up to an unexpected error', async () => {
+        TestBed.inject(AppNotices).raise('unexpected-error');
+        await stable();
+        expect(text('glassy-notification-toast')).toBe(
+          'Something went wrong. If the map stops responding, reload the page.',
+        );
+      });
+
+      it('lets the forecast speak first', async () => {
+        TestBed.inject(AppNotices).raise('map-tiles-unavailable');
+        TestBed.inject(ForecastStore).reload();
+        TestBed.tick();
+        expect(text('glassy-notification-toast')).toBe('Refreshing the forecast…');
+
+        repository.succeed(bundle, RECORDED_MORNING);
+        await stable();
+        expect(text('glassy-notification-toast')).toBe(
+          "Map tiles aren't loading right now. The forecast still works.",
+        );
+      });
     });
   });
 
@@ -200,6 +331,19 @@ describe('AppShellComponent', () => {
       const mapUi = TestBed.inject(MapUiStore);
       mapUi.selectSpot('kuilima');
       await stable();
+      press('Escape');
+      expect(mapUi.selectedSpotId()).toBeNull();
+    });
+
+    it('lets Escape close the point readout before the details', async () => {
+      const mapUi = TestBed.inject(MapUiStore);
+      mapUi.selectSpot('kuilima');
+      mapUi.inspect({ lat: 21.3, lon: -157.9 });
+      await stable();
+
+      press('Escape');
+      expect(mapUi.inspectedPoint()).toBeNull();
+      expect(mapUi.selectedSpotId()).toBe('kuilima');
       press('Escape');
       expect(mapUi.selectedSpotId()).toBeNull();
     });

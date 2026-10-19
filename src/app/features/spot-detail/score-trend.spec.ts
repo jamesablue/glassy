@@ -1,6 +1,6 @@
 import { rateScore } from '../../domain/scoring';
 import type { ScoreTrendPoint } from '../../state';
-import { dailySummary, TREND_CHART, trendGeometry } from './score-trend';
+import { dailySummary, TREND_CHART, trendGeometry, trendValueText } from './score-trend';
 
 /** Midnight on Sunday 18 October 2026 in Honolulu. */
 const MIDNIGHT = Date.UTC(2026, 9, 18, 10) / 1000;
@@ -122,5 +122,27 @@ describe('dailySummary', () => {
         maxSurf: expect.closeTo(0.48, 5),
       },
     ]);
+  });
+});
+
+describe('trendValueText', () => {
+  const hour = points(
+    10,
+    () => 7.44,
+    () => 1,
+  )[1] as ScoreTrendPoint;
+  const nine = { ...hour, hour: 9, time: MIDNIGHT + 9 * 3600 };
+
+  it('reads out an hour: when, the score and its rating, and the surf', () => {
+    expect(trendValueText(nine, 'ft')).toBe('Sun 9 AM: score 7.4, Good; surf 2–4 ft');
+    expect(trendValueText(nine, 'm')).toMatch(/; surf .+ m$/);
+  });
+
+  it('copes with a missing score', () => {
+    expect(trendValueText({ ...nine, score: NaN }, 'ft')).toMatch(/score —, Hazardous/);
+  });
+
+  it('is empty when there is no hour to read', () => {
+    expect(trendValueText(undefined, 'ft')).toBe('');
   });
 });

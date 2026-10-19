@@ -1,6 +1,6 @@
 import { DEPTH_BINS } from '../bathymetry/depth-classes';
 import { LAYERS } from '../color/layer-catalog';
-import { inkFor } from '../color/lut';
+import { inkFor, mixRgb } from '../color/contrast';
 import { colorAt, PALETTES } from '../color/palettes';
 import type { FieldLayer, FieldUnit, HeightUnit, Ink, LayerId, Rgb, UnitSettings } from '../models';
 import { FEET_PER_METER, HEIGHT_FACTORS, SPEED_FACTORS, SPEED_LABELS } from '../units/conversions';
@@ -11,7 +11,7 @@ export interface LegendCell {
   readonly label: string;
   readonly from: Rgb;
   readonly to: Rgb;
-  /** Text colour that reads well on `from`. */
+  /** Text colour that reads best under the label: on the solid colour, or across the gradient. */
   readonly ink: Ink;
 }
 
@@ -49,6 +49,12 @@ function depthLegend(unit: HeightUnit): LegendSpec {
   };
 }
 
+/**
+ * How far into a gradient cell its centred label reaches on either side, as a share of the cell:
+ * a two or three digit label covers about the middle 40% of a cell.
+ */
+const LABEL_SPAN = [0.3, 0.5, 0.7] as const;
+
 /** Ticks in the display unit, coloured by converting each back to the palette's native unit. */
 function fieldLegend(layer: FieldLayer, units: UnitSettings): LegendSpec {
   const { ticks, unitLabel, factor } = tickScale(layer.unit, units);
@@ -59,7 +65,9 @@ function fieldLegend(layer: FieldLayer, units: UnitSettings): LegendSpec {
     unit: unitLabel,
     cells: ticks.map((tick, i) => {
       const from = colorFor(tick);
-      return { label: String(tick), from, to: colorFor(ticks[i + 1] ?? tick), ink: inkFor(from) };
+      const to = colorFor(ticks[i + 1] ?? tick);
+      const underLabel = LABEL_SPAN.map((share) => mixRgb(from, to, share));
+      return { label: String(tick), from, to, ink: inkFor(...underLabel) };
     }),
   };
 }

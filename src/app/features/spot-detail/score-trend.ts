@@ -1,11 +1,14 @@
+import type { HeightUnit } from '../../domain/models';
 import { rateScore } from '../../domain/scoring';
 import {
   dayLabel,
   groupHoursByDay,
   nightRuns,
+  timeLabel,
   weekdayLabel,
   type HourRun,
 } from '../../domain/time';
+import { surfText } from '../../domain/units';
 import type { ScoreTrendPoint } from '../../state';
 import { hourPercent } from '../timeline/timeline-geometry';
 
@@ -128,6 +131,17 @@ export function dailySummary(points: readonly ScoreTrendPoint[]): TrendDaySummar
       maxSurf: Math.max(...day.map((point) => point.surf)),
     };
   });
+}
+
+/**
+ * One hour of the chart in words, the slider's value for screen readers: for example
+ * "Mon 12 PM: score 7.4, Good; surf 2–3 ft". Empty before there is an hour to describe.
+ */
+export function trendValueText(point: ScoreTrendPoint | undefined, unit: HeightUnit): string {
+  if (!point) return '';
+  const score = Number.isFinite(point.score) ? point.score.toFixed(1) : '—';
+  const rating = rateScore(point.score).label;
+  return `${timeLabel(point.time)}: score ${score}, ${rating}; surf ${surfText(point.surf, unit)}`;
 }
 
 /** Two decimals are plenty for coordinates a few hundred pixels across. */

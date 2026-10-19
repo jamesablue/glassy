@@ -71,19 +71,29 @@ describe('BathymetryClient', () => {
     http.expectNone(() => true);
   });
 
-  it('emits NaN when the lookup fails, and retries on the next tap', async () => {
-    const failed = await answer(client.elevationAt(21.3, -157.8), (r) =>
+  it('fails when the lookup fails, and retries on the next tap', async () => {
+    const failed = answer(client.elevationAt(21.3, -157.8), (r) =>
       r.flush('Service unavailable', { status: 503, statusText: 'Service Unavailable' }),
     );
-    expect(failed).toBeNaN();
+    await expect(failed).rejects.toMatchObject({ status: 503 });
 
-    const errorBody = await answer(client.elevationAt(21.3, -157.8), (r) =>
-      r.flush({ error: { code: 400, message: 'Unable to complete operation.' } }),
+    const offline = answer(client.elevationAt(21.3, -157.8), (r) =>
+      r.error(new ProgressEvent('error')),
     );
-    expect(errorBody).toBeNaN();
+    await expect(offline).rejects.toMatchObject({ status: 0 });
 
     const retried = await answer(client.elevationAt(21.3, -157.8), (r) => r.flush(ocean));
     expect(retried).toBeCloseTo(-8.5, 1);
+  });
+
+  it('fails on the error ArcGIS reports with HTTP 200, and does not remember it', async () => {
+    const errorBody = answer(client.elevationAt(21.3, -157.8), (r) =>
+      r.flush({ error: { code: 400, message: 'Unable to complete operation.' } }),
+    );
+    await expect(errorBody).rejects.toThrow('Unable to complete operation.');
+
+    const empty = answer(client.elevationAt(21.3, -157.8), (r) => r.flush({}));
+    await expect(empty).rejects.toThrow('NOAA did not return an elevation');
   });
 
   it('forgets the oldest points once it has remembered enough', async () => {

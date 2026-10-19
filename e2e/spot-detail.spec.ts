@@ -23,7 +23,9 @@ test.describe('spot detail', () => {
       await term.scrollIntoViewIfNeeded();
       await expect(term).toBeVisible();
     }
-    await expect(detail.getByRole('img', { name: 'Snorkel score and surf by hour' })).toBeVisible();
+    await expect(
+      detail.getByRole('slider', { name: 'Snorkel score and surf by hour' }),
+    ).toBeVisible();
     await expect(detail.locator('glassy-best-window')).toHaveText(
       /Best daylight window: Mon 1 PM–4 PM · score \d+\.\d \((excellent|good|fair|poor)\)/,
     );

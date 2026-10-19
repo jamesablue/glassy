@@ -57,11 +57,13 @@ export class SpotDetailPanelComponent {
   private readonly backButton = viewChild.required<ElementRef<HTMLButtonElement>>('back');
 
   constructor() {
-    // Opened from the list, whose row is now hidden, focus would fall back to the page: start
-    // keyboard users at the back button instead. Opened from a map pin, focus stays on the pin.
+    // Opened from the list, focus is on a row that is now hidden (or has already fallen back to
+    // the page): start keyboard users at the back button instead. Opened from a map pin, focus
+    // stays on the pin.
     afterNextRender(() => {
       const active = this.document.activeElement;
-      if (!active || active === this.document.body) this.backButton().nativeElement.focus();
+      const lost = !active || active === this.document.body || active.closest('[hidden]') !== null;
+      if (lost) this.backButton().nativeElement.focus();
     });
   }
 

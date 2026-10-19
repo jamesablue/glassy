@@ -14,7 +14,14 @@ App-wide wiring: providers, configuration and injection tokens.
 - `TERRAIN_TILE_SOURCES`: where the map's land and depth tiles come from. `map/` may not import `data/`, so the
   map depends on this interface and `data/noaa/` implements it (`provideNoaaTileSources()` in `app.config.ts`).
   Like `GLASSY_CONFIG` it has no default
-- Later: other app-wide provider helpers and the `ErrorHandler`
+- `PREFERS_REDUCED_MOTION`: the "reduce motion" setting as a signal that follows changes, so code that
+  animates on its own (the map's flights) can move instantly instead
+- `AppNotices`: the channel from code that notices a problem (the error handler, the map's tile layers) to the
+  shell that tells the user. Each kind of notice is raised at most once a minute, so a burst of failures
+  makes one notice
+- `GlassyErrorHandler` and `provideGlassyErrorHandler()`: the app's `ErrorHandler`. It logs each distinct
+  unhandled error once, with its stack, and raises a generic `unexpected-error` notice: details stay in the
+  console, never on screen
 
 **May import:** `domain/` (tokens are typed with domain models).
 

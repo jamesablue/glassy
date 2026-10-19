@@ -1,10 +1,14 @@
 import { Component, signal } from '@angular/core';
 import type { ComponentFixture } from '@angular/core/testing';
 import { TestBed } from '@angular/core/testing';
+import * as L from 'leaflet';
 import { renderMap, resizeMap } from '../../../../testing/map-harness';
+import { PREFERS_REDUCED_MOTION } from '../../../core/reduced-motion';
 import { OAHU_SPOTS } from '../../../domain/spots';
 import { SettingsStore, type SpotPin } from '../../../state';
+import { panelInsets } from '../../map-host/frame-oahu';
 import { MapHostComponent } from '../../map-host/map-host.component';
+import { visibleArea } from '../../map-host/visible-area';
 import { SpotMarkersComponent } from './spot-markers.component';
 
 const PINS: readonly SpotPin[] = OAHU_SPOTS.map((spot, index) => ({
@@ -42,14 +46,47 @@ class HostComponent {
 }
 
 describe('SpotMarkersComponent', () => {
-  beforeEach(() => localStorage.clear());
+  const reducedMotion = signal(false);
 
-  async function setup() {
+  beforeEach(() => {
+    localStorage.clear();
+    reducedMotion.set(false);
+    TestBed.configureTestingModule({
+      providers: [{ provide: PREFERS_REDUCED_MOTION, useValue: reducedMotion }],
+    });
+  });
+
+  async function setup(width = 1280, height = 800) {
     const fixture = TestBed.createComponent(HostComponent);
     const map = await renderMap(fixture);
-    resizeMap(fixture, 1280, 800);
+    resizeMap(fixture, width, height);
     return { fixture, map, host: fixture.componentInstance };
   }
+
+  const HANAUMA = L.latLng(21.2693, -157.694);
+  /** Where a point sits on screen, rounded to whole pixels. */
+  const screenPoint = (map: L.Map, point: L.LatLng): [number, number] => {
+    const { x, y } = map.latLngToContainerPoint(point);
+    return [Math.round(x), Math.round(y)];
+  };
+  /**
+   * Where `point` lands on screen once the map is centred on `centre` at `zoom`. Worked out from
+   * the arguments rather than read off the map, because Leaflet in jsdom rounds zooms to whole
+   * levels (it only snaps to quarter levels where CSS 3D transforms work).
+   */
+  const landing = (map: L.Map, point: L.LatLng, centre: L.LatLng, zoom: number) => {
+    const { x, y } = map
+      .project(point, zoom)
+      .subtract(map.project(centre, zoom))
+      .add(map.getSize().divideBy(2));
+    return [Math.round(x), Math.round(y)];
+  };
+  /** The middle of what the panels leave uncovered while a spot is open. */
+  const visibleMiddle = (map: L.Map): [number, number] => {
+    const size = map.getSize();
+    const { x, y } = visibleArea(size, panelInsets(size.x, size.y, true)).getCenter();
+    return [Math.round(x), Math.round(y)];
+  };
 
   function update(fixture: ComponentFixture<HostComponent>): void {
     fixture.detectChanges();
@@ -185,26 +222,73 @@ describe('SpotMarkersComponent', () => {
   });
 
   describe('selection', () => {
-    it('flies to a selected spot while the map is zoomed out', async () => {
+    const selectHanauma = (fixture: ComponentFixture<HostComponent>, host: HostComponent): void => {
+      host.pins.set(PINS.map((pin) => ({ ...pin, selected: pin.id === 'hanauma' })));
+      update(fixture);
+    };
+
+    it('flies a selected spot beside the side panel, not behind it', async () => {
       const { fixture, host, map } = await setup();
       map.setView([21.5, -158], 9, { animate: false });
       const flyTo = vi.spyOn(map, 'flyTo').mockReturnThis();
-      host.pins.set(PINS.map((pin) => ({ ...pin, selected: pin.id === 'hanauma' })));
-      update(fixture);
-      expect(flyTo).toHaveBeenCalledWith(
-        expect.objectContaining({ lat: 21.2693, lng: -157.694 }),
+      selectHanauma(fixture, host);
+
+      expect(flyTo).toHaveBeenCalledExactlyOnceWith(expect.any(L.LatLng), 11.5, { duration: 0.8 });
+      const [centre] = flyTo.mock.calls[0] as [L.LatLng];
+      const [x, y] = landing(map, HANAUMA, centre, 11.5);
+      expect([x, y]).toEqual(visibleMiddle(map));
+      // Right of the side panel, so right of the map's own middle.
+      expect(x).toBeGreaterThan(640);
+    });
+
+    it('lands the spot above the details sheet on a phone', async () => {
+      const { fixture, host, map } = await setup(390, 800);
+      map.setView([21.5, -158], 9, { animate: false });
+      const flyTo = vi.spyOn(map, 'flyTo').mockReturnThis();
+      selectHanauma(fixture, host);
+
+      const [centre] = flyTo.mock.calls[0] as [L.LatLng];
+      const [, y] = landing(map, HANAUMA, centre, 11.5);
+      expect(y).toBe(visibleMiddle(map)[1]);
+      expect(y).toBeLessThan(800 - Math.round(800 * 0.46) - 96);
+    });
+
+    it('moves at once instead of flying when the user prefers reduced motion', async () => {
+      reducedMotion.set(true);
+      const { fixture, host, map } = await setup();
+      map.setView([21.5, -158], 9, { animate: false });
+      const flyTo = vi.spyOn(map, 'flyTo');
+      const setView = vi.spyOn(map, 'setView');
+      selectHanauma(fixture, host);
+
+      expect(flyTo).not.toHaveBeenCalled();
+      expect(setView).toHaveBeenCalledExactlyOnceWith(
+        expect.any(L.LatLng),
         11.5,
-        { duration: 0.8 },
+        expect.objectContaining({ animate: false }),
       );
+      const [centre] = setView.mock.calls[0] as [L.LatLng];
+      expect(landing(map, HANAUMA, centre, 11.5)).toEqual(visibleMiddle(map));
     });
 
     it('stays put when the selected spot is already in view up close', async () => {
       const { fixture, host, map } = await setup();
-      map.setView([21.2693, -157.694], 12, { animate: false });
+      map.setView([21.2693, -157.67], 12, { animate: false });
       const flyTo = vi.spyOn(map, 'flyTo').mockReturnThis();
-      host.pins.set(PINS.map((pin) => ({ ...pin, selected: pin.id === 'hanauma' })));
-      update(fixture);
+      selectHanauma(fixture, host);
       expect(flyTo).not.toHaveBeenCalled();
+    });
+
+    it('moves a spot that is up close but behind the side panel', async () => {
+      const { fixture, host, map } = await setup();
+      // Up close, with Hanauma Bay 150 px from the left edge: under the side panel.
+      map.setView(HANAUMA, 12, { animate: false });
+      map.panBy([490, 0], { animate: false });
+      expect(screenPoint(map, HANAUMA)).toEqual([150, 400]);
+
+      const flyTo = vi.spyOn(map, 'flyTo').mockReturnThis();
+      selectHanauma(fixture, host);
+      expect(flyTo).toHaveBeenCalled();
     });
 
     it('does not fly again when only the hour changes', async () => {
@@ -218,13 +302,36 @@ describe('SpotMarkersComponent', () => {
     });
   });
 
-  it('brings a pin into view when it gets keyboard focus', async () => {
-    const { map } = await setup();
-    const panInside = vi.spyOn(map, 'panInside').mockReturnThis();
-    const button = pinButton('Hanauma Bay');
-    vi.spyOn(button, 'matches').mockReturnValue(true);
-    button.dispatchEvent(new FocusEvent('focus'));
-    expect(panInside).toHaveBeenCalledWith([21.2693, -157.694], { padding: [48, 48] });
+  describe('keyboard focus', () => {
+    const focusPin = (name: string): void => {
+      const button = pinButton(name);
+      vi.spyOn(button, 'matches').mockReturnValue(true);
+      button.dispatchEvent(new FocusEvent('focus'));
+    };
+
+    it('brings a pin into view, clear of the panels', async () => {
+      const { map } = await setup();
+      const panInside = vi.spyOn(map, 'panInside').mockReturnThis();
+      focusPin('Hanauma Bay');
+      expect(panInside).toHaveBeenCalledWith([21.2693, -157.694], {
+        paddingTopLeft: L.point(344 + 48, 12 + 48),
+        paddingBottomRight: L.point(160 + 48, 90 + 48),
+        animate: true,
+      });
+    });
+
+    it('gives a short phone screen less room around the pin, and does not animate', async () => {
+      reducedMotion.set(true);
+      const { map } = await setup(390, 300);
+      const panInside = vi.spyOn(map, 'panInside').mockReturnThis();
+      focusPin('Hanauma Bay');
+      // 300 px tall: 56 px under the brand, 156 px for the folded sheet and the timeline.
+      expect(panInside).toHaveBeenCalledWith([21.2693, -157.694], {
+        paddingTopLeft: L.point(8 + 22, 56 + 22),
+        paddingBottomRight: L.point(52 + 22, 156 + 22),
+        animate: false,
+      });
+    });
   });
 
   it('removes every marker and pin component when destroyed', async () => {

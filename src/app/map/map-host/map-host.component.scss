@@ -9,3 +9,25 @@
   position: absolute;
   inset: 0;
 }
+
+// While the map has keyboard focus, a ring marks its edge and a circle the middle, which Enter
+// inspects. Leaflet's container fills the screen, so the ring is drawn inside it.
+.map:focus-visible {
+  outline: 2px solid var(--accent-2);
+  outline-offset: -2px;
+
+  &::after {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    z-index: 800;
+    width: 22px;
+    height: 22px;
+    margin: -11px 0 0 -11px;
+    border: 2px solid var(--accent-2);
+    border-radius: 50%;
+    box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.6);
+    content: '';
+    pointer-events: none;
+  }
+}

@@ -7,13 +7,23 @@
   z-index: 1000;
 }
 
+// Never runs under the legend and the timeline: on a very short screen the menu scrolls instead.
 nav {
   @include menu.menu-column;
+
+  max-height: calc(100dvh - var(--timeline-height) - 80px);
+  padding: 2px;
+  overflow-y: auto;
+  scrollbar-width: none;
 }
 
 // A gap between the layers and everything else.
 .toggles {
   margin-top: 12px;
+
+  @media (max-height: 560px) {
+    margin-top: 4px;
+  }
 }
 
 button {

@@ -116,15 +116,46 @@ describe('ScoreTrendChartComponent', () => {
     expect(picked).toEqual([]);
   });
 
-  it('has an accessible name and description, and a day-by-day table', () => {
-    const svg = element.querySelector('svg');
-    expect(svg?.getAttribute('role')).toBe('img');
-    const [titleId, descriptionId] = (svg?.getAttribute('aria-labelledby') ?? '').split(' ');
-    expect(document.getElementById(titleId ?? '')?.textContent).toBe(
-      'Snorkel score and surf by hour',
+  it('is a slider over the hours, named, described and read out hour by hour', () => {
+    const slider = plot();
+    expect(slider.getAttribute('role')).toBe('slider');
+    expect(slider.tabIndex).toBe(0);
+    expect(slider.getAttribute('aria-label')).toBe('Snorkel score and surf by hour');
+    expect(slider.getAttribute('aria-valuemin')).toBe('0');
+    expect(slider.getAttribute('aria-valuemax')).toBe(String(HOURS - 1));
+    expect(slider.getAttribute('aria-valuenow')).toBe('8');
+    expect(slider.getAttribute('aria-valuetext')).toBe(
+      'Sun 8 AM: score 1.0, Hazardous; surf 1–2 ft',
     );
-    expect(document.getElementById(descriptionId ?? '')?.textContent).toContain('Bars show');
+    const description = document.getElementById(slider.getAttribute('aria-describedby') ?? '');
+    expect(description?.textContent).toContain('Bars show');
+    expect(element.querySelector('svg')?.getAttribute('aria-hidden')).toBe('true');
+  });
 
+  it('moves through the hours from the keyboard', () => {
+    const key = (name: string): KeyboardEvent => {
+      const event = new KeyboardEvent('keydown', { key: name, cancelable: true });
+      plot().dispatchEvent(event);
+      return event;
+    };
+    expect(key('ArrowRight').defaultPrevented).toBe(true);
+    key('ArrowLeft');
+    key('PageUp');
+    key('End');
+    key('Home');
+    expect(picked).toEqual([9, 7, 32, HOURS - 1, 0]);
+    expect(key('Tab').defaultPrevented).toBe(false);
+  });
+
+  it('does not ask for an hour past either end', () => {
+    selectedHour.set(0);
+    fixture.detectChanges();
+    plot().dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', cancelable: true }));
+    plot().dispatchEvent(new KeyboardEvent('keydown', { key: 'PageDown', cancelable: true }));
+    expect(picked).toEqual([]);
+  });
+
+  it('has a day-by-day table for screen readers', () => {
     const rows = Array.from(element.querySelectorAll('table.visually-hidden tbody tr'), (row) =>
       Array.from(row.children, (cell) => cell.textContent?.trim()),
     );

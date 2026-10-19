@@ -35,9 +35,13 @@
       0 0 2px rgba(0, 0, 0, 0.9),
       0 0 4px rgba(0, 0, 0, 0.6);
 
+    // Black or white, whichever has more contrast under the label (`inkFor`), with a halo of the
+    // opposite colour for the stretches of a gradient where it is closest to the fill.
     &.dark {
-      color: #0b1220;
-      text-shadow: none;
+      color: #000;
+      text-shadow:
+        0 0 2px rgba(255, 255, 255, 0.7),
+        0 0 4px rgba(255, 255, 255, 0.4);
     }
   }
 
@@ -57,5 +61,14 @@
   .bar {
     flex: 1;
     min-width: 0;
+  }
+}
+
+// The narrowest phones (or 400% zoom): twelve depth bands still fit, labels included.
+@media (max-width: 400px) {
+  .bar.classes li {
+    min-width: 0;
+    font-size: 9.5px;
+    letter-spacing: -0.2px;
   }
 }

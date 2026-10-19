@@ -122,6 +122,18 @@ describe('SpotDetailPanelComponent', () => {
     expect(RECORDED_MORNING_HOUR).toBe(TestBed.inject(TimelineStore).selectedHour());
   });
 
+  it('takes focus from a row that was hidden as the details opened', async () => {
+    const list = document.createElement('div');
+    const row = document.createElement('button');
+    list.append(row);
+    document.body.append(list);
+    row.focus();
+    list.hidden = true;
+    await render();
+    expect(document.activeElement).toBe(element.querySelector('.back'));
+    list.remove();
+  });
+
   it('leaves focus where it is when the spot was opened from its pin', async () => {
     const pin = document.createElement('button');
     document.body.append(pin);

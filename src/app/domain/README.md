@@ -9,7 +9,8 @@ Pure TypeScript: the snorkel scoring model and everything it needs.
   score matrix and ranking
 - `forecast/`: reading one spot's hour out of a packed `SpotForecast`
 - `grid/`: grid cell centres, grid position, bilinear sampling, vector fields, point sampling
-- `color/` and `bathymetry/`: palettes, colour lookup tables, layer catalog, depth classes
+- `color/` and `bathymetry/`: palettes, colour lookup tables, layer catalog, depth classes, and WCAG contrast
+  (`contrastRatio`, and `inkFor`, which picks black or white text for a fill or a stretch of gradient)
 - `legend/`: legend ticks and the legend for a layer in the user's units
 - `units/`, `geo/`, `time/`: unit conversion and formatting, offshore points, label declutter, Hawaii time
 - `spots/`: the Oahu spot catalog

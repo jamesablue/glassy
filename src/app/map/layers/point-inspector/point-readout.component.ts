@@ -5,7 +5,8 @@ import { readoutRows, readoutTitle } from './readout-rows';
 
 /**
  * The forecast and depth at a tapped map point, shown in the point inspector's popup. It announces
- * changes politely, so screen readers hear the depth when NOAA answers.
+ * changes politely, so screen readers hear the depth when NOAA answers. A missing depth shows a
+ * dash, with the reason as a tooltip and, for screen readers, after the dash.
  */
 @Component({
   selector: 'glassy-point-readout',
@@ -16,7 +17,7 @@ import { readoutRows, readoutTitle } from './readout-rows';
         @for (row of rows(); track row.label) {
           <div class="row" [class.depth]="row.label === 'Depth'">
             <dt>{{ row.label }}</dt>
-            <dd>
+            <dd [attr.title]="row.note ?? null">
               @if (row.heading !== undefined) {
                 <svg
                   class="arrow"
@@ -28,6 +29,9 @@ import { readoutRows, readoutTitle } from './readout-rows';
                 </svg>
               }
               {{ row.value }}
+              @if (row.note) {
+                <span class="visually-hidden">({{ row.note }})</span>
+              }
             </dd>
           </div>
         }

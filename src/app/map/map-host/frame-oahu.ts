@@ -27,6 +27,40 @@ export function framePadding(width: number): FramePadding {
   return { topLeft: [roomy ? 350 : 250, 30], bottomRight: [roomy ? 170 : 120, 80] };
 }
 
+/** CSS pixels covered by the floating panels along each edge of the map. */
+export interface PanelInsets {
+  readonly top: number;
+  readonly right: number;
+  readonly bottom: number;
+  readonly left: number;
+}
+
+/**
+ * The phone sheet's height as a share of the screen (`max-height: 46vh` in
+ * `app-shell.component.scss`); a spot's details always fill it.
+ */
+const SHEET_SHARE = 0.46;
+
+/**
+ * What the panels cover at a given map size, so a spot can be brought into the part of the map
+ * that shows (see `app-shell.component.scss` and `tokens.scss` for where they sit):
+ *
+ * - on a phone, the brand along the top, the menu's icons on the right, and above the timeline the
+ *   side panel's sheet: its folded header, or up to 46% of the height when it is open
+ * - on wider screens, the side panel (`--side-width`) on the left, the layer menu and its labels on
+ *   the right, and the timeline and legend along the bottom
+ *
+ * @param sheetOpen whether the side panel is open on a phone, as it is while a spot is selected
+ */
+export function panelInsets(width: number, height: number, sheetOpen: boolean): PanelInsets {
+  if (width < NARROW_MAX_WIDTH) {
+    const belowSheet = 96;
+    const sheet = sheetOpen ? Math.round(height * SHEET_SHARE) : 60;
+    return { top: 56, right: 52, bottom: belowSheet + sheet, left: 8 };
+  }
+  return { top: 12, right: 160, bottom: 90, left: 344 };
+}
+
 /**
  * Fits Oahu into the space the panels leave. A map that starts without a size (in a hidden tab or
  * container) gets a rough view first and is framed properly on its first resize.

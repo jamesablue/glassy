@@ -1,5 +1,6 @@
 import { Component, inject, input } from '@angular/core';
 import { TERRAIN_TILE_SOURCES } from '../../core/terrain-tile-sources';
+import { injectTileOutage } from './guarded-tile-layer';
 import { keepLayerOnMap } from './keep-layer-on-map';
 import { NoaaExportTileLayer } from './noaa-export-tile-layer';
 
@@ -14,9 +15,11 @@ export class DepthLayerComponent {
   constructor() {
     const sources = inject(TERRAIN_TILE_SOURCES);
     keepLayerOnMap(
-      new NoaaExportTileLayer((tile, ratio) => sources.depthTileUrl(tile, ratio), {
-        pane: 'depth',
-      }),
+      new NoaaExportTileLayer(
+        (tile, ratio) => sources.depthTileUrl(tile, ratio),
+        { pane: 'depth' },
+        injectTileOutage(),
+      ),
       () => this.visible(),
     );
   }

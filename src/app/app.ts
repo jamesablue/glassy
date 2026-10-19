@@ -17,7 +17,8 @@ import { ConditionsStore, ForecastStore, MapUiStore, TimelineStore } from './sta
 /**
  * The app root: the full-screen map with its layers bound to the stores, and the feature shell that
  * floats over it. The two sit side by side and share nothing but the stores, so neither the map nor
- * the features layer needs to import the other.
+ * the features layer needs to import the other. The shell comes first in the page, so keyboard
+ * focus and screen readers meet the panels before the map underneath them.
  */
 @Component({
   selector: 'glassy-root',

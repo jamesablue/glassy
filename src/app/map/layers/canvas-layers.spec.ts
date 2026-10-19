@@ -114,6 +114,22 @@ describe('canvas layers', () => {
       expect(centre()).not.toEqual(first);
     });
 
+    it('paints once per change and not again when nothing changed', async () => {
+      const { fixture, host } = await setup();
+      const context = contextOf(fieldCanvas());
+      const draws = context.putImages.length;
+
+      host.hour.set(1);
+      update(fixture);
+      expect(context.putImages.length).toBe(draws + 1);
+
+      host.hour.set(1);
+      host.palette.set(PALETTES.waves);
+      update(fixture);
+      update(fixture);
+      expect(context.putImages.length).toBe(draws + 1);
+    });
+
     it('hides while the map zooms and redraws when it settles', async () => {
       const { map } = await setup();
       const canvas = fieldCanvas();

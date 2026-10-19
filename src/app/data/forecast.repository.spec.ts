@@ -5,6 +5,7 @@ import {
   type TestRequest,
 } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
+import { IDBFactory } from 'fake-indexeddb';
 import { firstValueFrom } from 'rxjs';
 import gridMarine from '../../testing/fixtures/raw/open-meteo-grid-marine.json';
 import gridWind from '../../testing/fixtures/raw/open-meteo-grid-wind.json';
@@ -13,6 +14,8 @@ import spotWeather from '../../testing/fixtures/raw/open-meteo-spot-weather.json
 import { testForecastBundle } from '../../testing/forecast-bundle';
 import { DEFAULT_GLASSY_CONFIG } from '../core/glassy-config';
 import { provideGlassyConfig } from '../core/glassy-config.token';
+import { SPOT_CATALOG } from '../core/spot-catalog.token';
+import type { Spot } from '../domain/models';
 import { OAHU_SPOTS } from '../domain/spots';
 import { ForecastCache, type CachedForecast } from './cache/forecast-cache';
 import { ForecastUnavailableError, RateLimitedError } from './forecast-errors';
@@ -216,5 +219,57 @@ describe('ForecastRepository', () => {
 
       expect((await outcome).result?.source).toBe('stale-cache');
     });
+  });
+});
+
+describe('ForecastRepository with the IndexedDB cache', () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(NOW);
+    vi.stubGlobal('indexedDB', new IDBFactory());
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
+  function configure(spots: readonly Spot[]): {
+    repository: ForecastRepository;
+    cache: ForecastCache;
+    http: HttpTestingController;
+  } {
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        provideGlassyConfig(),
+        { provide: SPOT_CATALOG, useValue: spots },
+      ],
+    });
+    return {
+      repository: TestBed.inject(ForecastRepository),
+      cache: TestBed.inject(ForecastCache),
+      http: TestBed.inject(HttpTestingController),
+    };
+  }
+
+  it('ignores a forecast cached for another spot list and loads a new one', async () => {
+    // A visit before a spot was added: its forecast has one series fewer than the catalog now.
+    const before = configure(OAHU_SPOTS.slice(1));
+    await before.cache.put({ bundle: testForecastBundle(), fetchedAt: NOW - 60_000 });
+
+    const { repository, http } = configure(OAHU_SPOTS);
+    const result = firstValueFrom(repository.load());
+    await vi.waitFor(() => http.expectOne(URLS.gridMarine).flush(gridMarine));
+    http.expectOne(URLS.gridWind).flush(gridWind);
+    http.expectOne(URLS.spotMarine).flush(spotMarine);
+    http.expectOne(URLS.spotWeather).flush(spotWeather);
+
+    const loaded = await result;
+    expect(loaded.source).toBe('network');
+    expect(loaded.bundle.spots.spotCount).toBe(OAHU_SPOTS.length);
+    http.verify();
   });
 });

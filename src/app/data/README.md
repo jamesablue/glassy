@@ -10,7 +10,9 @@ Talks to the outside world and turns responses into domain types.
   for land and depth tiles, the `exportImage` tile URL builder, and `NoaaTerrainTileSources`, which implements
   the `TERRAIN_TILE_SOURCES` token from `core/` with them so the map gets tile URLs without importing `data/`
   (`provideNoaaTileSources()`)
-- `cache/`: `ForecastCache`, the last forecast in IndexedDB with a freshness window and a stale fallback
+- `cache/`: `ForecastCache`, the last forecast in IndexedDB with a freshness window and a stale fallback.
+  Each record also keeps the spot ids in order and the grid it was fetched for; a record made for another
+  catalog or grid is a miss, fresh or stale, because its series would no longer line up with the spots
 - `forecast.repository.ts`: `ForecastRepository.load()`, cache-first loading used by the state layer
 - `forecast-errors.ts`, `retry-transient.ts`: typed load errors and the retry policy
 

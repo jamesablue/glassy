@@ -10,8 +10,9 @@ import {
   provideTestForecast,
   ScriptedForecastRepository,
 } from '../../../testing/state-providers';
+import { SPOT_CATALOG } from '../../core/spot-catalog.token';
 import { OAHU_SPOTS } from '../../domain/spots';
-import { MapUiStore, SettingsStore, TimelineStore } from '../../state';
+import { ForecastStore, MapUiStore, SettingsStore, TimelineStore } from '../../state';
 import { NARROW_VIEWPORT } from '../shell/narrow-viewport';
 import { SpotRankingPanelComponent } from './spot-ranking-panel.component';
 
@@ -200,5 +201,49 @@ describe('SpotRankingPanelComponent', () => {
     fixture.detectChanges();
     expect(element.querySelector('.empty')?.textContent).toContain('once the forecast loads');
     expect(element.querySelector('.time')?.textContent).toBe('');
+  });
+
+  it('says when the forecast on show was fetched while it is stale', async () => {
+    const repository = new ScriptedForecastRepository();
+    TestBed.configureTestingModule({
+      providers: provideScriptedForecast(repository, RECORDED_MORNING),
+    });
+    fixture = TestBed.createComponent(SpotRankingPanelComponent);
+    element = fixture.nativeElement as HTMLElement;
+    TestBed.tick();
+    repository.serveStale(recordedForecastBundle(), Date.UTC(2026, 9, 18, 17));
+    await stable();
+    expect(element.querySelector('.data-age')?.textContent?.trim()).toBe('Data from Sun 7 AM');
+
+    TestBed.inject(ForecastStore).reload();
+    TestBed.tick();
+    repository.succeed(recordedForecastBundle(), RECORDED_MORNING);
+    await stable();
+    expect(element.querySelector('.data-age')).toBeNull();
+  });
+
+  describe('a region without spots', () => {
+    // A catalog where every spot is on the North Shore (the forecast does not care about regions).
+    const northOnly = OAHU_SPOTS.map((spot) => ({ ...spot, region: 'North Shore' as const }));
+
+    beforeEach(async () => {
+      TestBed.configureTestingModule({
+        providers: [{ provide: SPOT_CATALOG, useValue: northOnly }],
+      });
+      await render();
+    });
+
+    it('says so, and offers the way back to every spot', async () => {
+      chip('South')?.click();
+      await stable();
+      expect(rows()).toEqual([]);
+      const empty = element.querySelector('.empty');
+      expect(empty?.textContent).toContain('No spots in this region.');
+
+      empty?.querySelector<HTMLButtonElement>('.show-all')?.click();
+      await stable();
+      expect(TestBed.inject(MapUiStore).regionFilter()).toBe('all');
+      expect(rows()).toHaveLength(OAHU_SPOTS.length);
+    });
   });
 });
