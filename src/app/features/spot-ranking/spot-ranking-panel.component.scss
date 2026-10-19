@@ -43,7 +43,17 @@
   width: 20px;
   height: 20px;
   color: var(--muted);
-  transition: transform 0.2s;
+
+  @media (prefers-reduced-motion: no-preference) {
+    transition: transform 0.2s;
+  }
+}
+
+// Under the header, folded or not, while the forecast on show is an older one.
+.data-age {
+  margin: -6px 14px 8px;
+  color: var(--danger-text);
+  font-size: 11.5px;
 }
 
 [aria-expanded='false'] .chevron {
@@ -73,6 +83,19 @@
 .empty {
   padding: 6px 8px 4px;
   color: var(--muted);
+}
+
+.show-all {
+  margin-left: 4px;
+  color: var(--accent-2);
+  font-weight: 600;
+  text-decoration: underline;
+
+  &:focus-visible {
+    outline: 2px solid var(--accent-2);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
 }
 
 // On a phone the panel is a sheet above the timeline, so the chevron points the other way.

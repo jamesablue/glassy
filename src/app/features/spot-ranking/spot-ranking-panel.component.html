@@ -13,6 +13,9 @@
     <glassy-icon name="chevron" class="chevron" />
   </button>
 </h2>
+@if (staleSince(); as since) {
+  <p class="data-age">Data from {{ since }}</p>
+}
 
 <div id="spot-ranking-body" class="body" [hidden]="!expanded()">
   <glassy-region-filter class="filters" [value]="region()" (valueChange)="setRegion($event)" />
@@ -28,7 +31,14 @@
         />
       </li>
     } @empty {
-      <li class="empty">Spots appear here once the forecast loads.</li>
+      @if (loaded()) {
+        <li class="empty">
+          No spots in this region.
+          <button type="button" class="show-all" (click)="setRegion('all')">Show all</button>
+        </li>
+      } @else {
+        <li class="empty">Spots appear here once the forecast loads.</li>
+      }
     }
   </ol>
 </div>
