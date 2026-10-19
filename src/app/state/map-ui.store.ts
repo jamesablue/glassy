@@ -17,7 +17,7 @@ export type RegionFilter = 'all' | Region;
 
 /**
  * What the map and the panels around it are showing: the layer and its overlays, the selected
- * spot, the ranking's region filter and the point being inspected.
+ * spot, the spot under the pointer, the ranking's region filter and the point being inspected.
  *
  * The layer and overlay toggles are remembered between visits, so `SettingsStore` owns them and
  * this store reads and writes them through it. Components still come here for everything about the
@@ -30,6 +30,7 @@ export class MapUiStore {
   private readonly spots = inject(SPOT_CATALOG);
 
   private readonly selectedId = signal<string | null>(null);
+  private readonly hoveredId = signal<string | null>(null);
   private readonly region = signal<RegionFilter>('all');
   private readonly inspected = signal<LatLon | null>(null);
 
@@ -40,6 +41,11 @@ export class MapUiStore {
   readonly selectedSpot = computed<Spot | null>(
     () => this.spots.find((spot) => spot.id === this.selectedId()) ?? null,
   );
+  /**
+   * The spot under the pointer (or keyboard focus) in the ranking or on the map, so the other one
+   * can highlight it too.
+   */
+  readonly hoveredSpotId = this.hoveredId.asReadonly();
   readonly regionFilter = this.region.asReadonly();
   /** The map point whose forecast readout is open, or `null`. */
   readonly inspectedPoint = this.inspected.asReadonly();
@@ -77,6 +83,11 @@ export class MapUiStore {
 
   clearSelection(): void {
     this.selectedId.set(null);
+  }
+
+  /** Highlights a spot by id, or nothing with `null`. An id that is not in the catalog is ignored. */
+  hoverSpot(id: string | null): void {
+    if (id === null || this.spots.some((spot) => spot.id === id)) this.hoveredId.set(id);
   }
 
   setRegionFilter(filter: RegionFilter): void {

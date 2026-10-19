@@ -91,6 +91,16 @@ describe('TimelineStore', () => {
     });
   });
 
+  it('knows whether the selected hour is in daylight', async () => {
+    const timeline = setup(MORNING, recorded);
+    expect(timeline.isDaylight()).toBe(true);
+    await loaded();
+
+    expect(timeline.isDaylight()).toBe(true);
+    timeline.seek(2);
+    expect(timeline.isDaylight()).toBe(false);
+  });
+
   it('groups the hours into Honolulu days and finds the nights', async () => {
     const timeline = setup(MORNING, recorded);
     await loaded();

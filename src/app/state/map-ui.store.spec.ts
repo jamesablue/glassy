@@ -105,6 +105,25 @@ describe('MapUiStore', () => {
     });
   });
 
+  describe('hovered spot', () => {
+    it('starts with nothing highlighted', () => {
+      expect(mapUi.hoveredSpotId()).toBeNull();
+    });
+
+    it('highlights a spot from the catalog and clears it again', () => {
+      mapUi.hoverSpot('hanauma');
+      expect(mapUi.hoveredSpotId()).toBe('hanauma');
+      mapUi.hoverSpot(null);
+      expect(mapUi.hoveredSpotId()).toBeNull();
+    });
+
+    it('ignores an id that is not in the catalog', () => {
+      mapUi.hoverSpot('hanauma');
+      mapUi.hoverSpot('atlantis');
+      expect(mapUi.hoveredSpotId()).toBe('hanauma');
+    });
+  });
+
   it('filters by region', () => {
     mapUi.setRegionFilter('Windward');
     expect(mapUi.regionFilter()).toBe('Windward');
