@@ -11,6 +11,10 @@ import { failForecastRequests, showStaleForecast } from './support/states';
 import { expect, test } from './support/test';
 
 test.describe('accessibility (axe, WCAG 2.2 AA)', () => {
+  // Each test scans the whole page twice (see expectNoAxeViolations). That takes a couple of
+  // seconds alone, but with every worker busy it has taken close to the default 30 s.
+  test.describe.configure({ timeout: 60_000 });
+
   test('the ranking has no violations', async ({ page }) => {
     await page.goto('/');
     await showRanking(page);
