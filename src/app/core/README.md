@@ -4,10 +4,13 @@ App-wide wiring: providers, configuration and injection tokens.
 
 **Lives here**
 
-- `app.config` provider helpers (HTTP, router features, error handling)
-- `GLASSY_CONFIG` and other config tokens (API base URLs, cache lifetimes)
-- `SPOT_CATALOG` token that supplies the spot list, so other islands can plug in later
-- The app-wide `ErrorHandler`
+- `GlassyConfig` and `DEFAULT_GLASSY_CONFIG` (`glassy-config.ts`): API base URLs, the forecast grid, forecast
+  days, time zone, cache lifetimes and the offshore distance. Plain data with no Angular imports, so Node
+  scripts build the same requests as the app
+- `GLASSY_CONFIG` and `provideGlassyConfig(overrides?)`: the config as an injection token, with no implicit
+  default, so every app or test states its environment
+- `SPOT_CATALOG`: the spot list, defaulting to Oahu, so other islands can plug in later
+- Later: other app-wide provider helpers and the `ErrorHandler`
 
 **May import:** `domain/` (tokens are typed with domain models).
 
