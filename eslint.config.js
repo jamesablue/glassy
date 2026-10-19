@@ -123,7 +123,7 @@ module.exports = defineConfig([
     'infra/',
   ]),
   {
-    files: ['**/*.ts'],
+    files: ['**/*.ts', '**/*.mts'],
     extends: [
       eslint.configs.recommended,
       tseslint.configs.recommended,

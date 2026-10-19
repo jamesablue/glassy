@@ -32,7 +32,7 @@
     "prepare": "husky"
   },
   "lint-staged": {
-    "*.{ts,html}": [
+    "*.{ts,mts,html}": [
       "eslint --fix",
       "prettier --write"
     ],
