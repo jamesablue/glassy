@@ -21,5 +21,5 @@ export const test = base.extend<{ recordedNetwork: void }>({
   ],
 });
 
-export { expect } from '@playwright/test';
+export { devices, expect } from '@playwright/test';
 export type { Locator, Page } from '@playwright/test';
