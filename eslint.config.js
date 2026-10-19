@@ -63,6 +63,8 @@ module.exports = defineConfig([
     'prototype/',
     'playwright-report/',
     'test-results/',
+    // The CDK app is a separate package with its own tooling.
+    'infra/',
   ]),
   {
     files: ['**/*.ts'],

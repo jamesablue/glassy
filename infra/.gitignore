@@ -1,0 +1,5 @@
+node_modules/
+
+# CDK output and asset staging
+cdk.out/
+.cdk.staging/

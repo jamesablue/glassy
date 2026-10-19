@@ -6,3 +6,5 @@ prototype/
 playwright-report/
 test-results/
 package-lock.json
+# The CDK app has its own Prettier run (cd infra && npm run format:check)
+infra/
