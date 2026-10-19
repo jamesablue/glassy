@@ -8,6 +8,7 @@ import { provideRouter } from '@angular/router';
 
 import { routes } from './app.routes';
 import { provideGlassyConfig } from './core';
+import { provideUrlStateSync } from './state';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -16,5 +17,6 @@ export const appConfig: ApplicationConfig = {
     provideRouter(routes),
     provideHttpClient(withFetch()),
     provideGlassyConfig(),
+    provideUrlStateSync(),
   ],
 };
