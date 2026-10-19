@@ -24,7 +24,30 @@ jobs:
         with:
           persist-credentials: false
 
+      # The review reads GitHub's dependency graph, which is a repository setting
+      # (Settings > Code security > Dependency graph). While it is off the review cannot run:
+      # say so on every pull request instead of failing it. Any other answer goes to the review.
+      - name: Check the dependency graph is on
+        id: graph
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          status=$(curl --silent --output /dev/null --write-out '%{http_code}' \
+            --header "Authorization: Bearer $GH_TOKEN" \
+            --header 'Accept: application/vnd.github+json' \
+            "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/dependency-graph/compare/$BASE...$HEAD")
+          echo "Dependency graph compare: HTTP $status"
+          if [ "$status" = 403 ] || [ "$status" = 404 ]; then
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::warning title=Dependency review skipped::The dependency graph is off for this repository, so dependency changes are not reviewed. Turn it on in Settings > Code security > Dependency graph."
+          else
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Review dependency changes
+        if: steps.graph.outputs.enabled == 'true'
         uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
         with:
           fail-on-severity: high
