@@ -30,3 +30,12 @@ export function compassPoint(degrees: number): CompassPoint | undefined {
   const normalized = ((degrees % 360) + 360) % 360;
   return COMPASS_POINTS[Math.round(normalized / DEGREES_PER_POINT) % COMPASS_POINTS.length];
 }
+
+/**
+ * The bearing something travels toward, given the bearing it comes from. Forecasts give wind and
+ * waves as the direction they come from, while arrows on screen point the way they move. Always
+ * between 0 (inclusive) and 360.
+ */
+export function travelBearing(fromDegrees: number): number {
+  return (((fromDegrees + 180) % 360) + 360) % 360;
+}

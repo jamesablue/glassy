@@ -1,4 +1,4 @@
-import { COMPASS_POINTS, compassPoint } from './compass';
+import { COMPASS_POINTS, compassPoint, travelBearing } from './compass';
 
 describe('compassPoint', () => {
   it('names every 22.5° step', () => {
@@ -29,5 +29,26 @@ describe('compassPoint', () => {
 
   it('has no point for a missing bearing', () => {
     expect(compassPoint(NaN)).toBeUndefined();
+  });
+});
+
+describe('travelBearing', () => {
+  it.each([
+    [0, 180],
+    [70, 250],
+    [200, 20],
+    [180, 0],
+    [359, 179],
+  ])('turns a wind from %s° into one travelling toward %s°', (from, toward) => {
+    expect(travelBearing(from)).toBe(toward);
+  });
+
+  it('accepts negative bearings and bearings past 360', () => {
+    expect(travelBearing(-90)).toBe(90);
+    expect(travelBearing(720 + 45)).toBe(225);
+  });
+
+  it('has no bearing for a missing direction', () => {
+    expect(travelBearing(NaN)).toBeNaN();
   });
 });

@@ -1,4 +1,11 @@
-import { formatDepth, formatHeight, formatSpeed, formatTemperature } from './format';
+import {
+  formatDepth,
+  formatHeight,
+  formatPeriod,
+  formatSignedHeight,
+  formatSpeed,
+  formatTemperature,
+} from './format';
 
 describe('formatHeight', () => {
   it('shows one decimal below 10', () => {
@@ -14,6 +21,25 @@ describe('formatHeight', () => {
 
   it('keeps the sign of negative heights', () => {
     expect(formatHeight(-0.3, 'ft')).toBe('-1.0');
+  });
+});
+
+describe('formatSignedHeight', () => {
+  it('marks heights at or above the mean with a plus', () => {
+    expect(formatSignedHeight(0.25, 'ft')).toBe('+0.8');
+    expect(formatSignedHeight(0, 'm')).toBe('+0.0');
+  });
+
+  it('keeps the minus of heights below the mean', () => {
+    expect(formatSignedHeight(-0.37, 'ft')).toBe('-1.2');
+    expect(formatSignedHeight(-0.4, 'm')).toBe('-0.4');
+  });
+});
+
+describe('formatPeriod', () => {
+  it('rounds to whole seconds', () => {
+    expect(formatPeriod(8.4)).toBe('8');
+    expect(formatPeriod(13.6)).toBe('14');
   });
 });
 
