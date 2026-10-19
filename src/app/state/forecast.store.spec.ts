@@ -182,4 +182,57 @@ describe('ForecastStore', () => {
       expect(repository.load).toHaveBeenCalledTimes(3);
     });
   });
+
+  describe('when the connection comes back', () => {
+    let onLine: ReturnType<typeof vi.spyOn>;
+
+    beforeEach(() => {
+      onLine = vi.spyOn(window.navigator, 'onLine', 'get').mockReturnValue(true);
+    });
+
+    afterEach(() => onLine.mockRestore());
+
+    /** The browser loses its connection, or gets it back. */
+    function connection(online: boolean): void {
+      onLine.mockReturnValue(online);
+      window.dispatchEvent(new Event(online ? 'online' : 'offline'));
+      TestBed.tick();
+    }
+
+    it('loads again after a failed load', async () => {
+      connection(false);
+      await answer(new ForecastUnavailableError('The forecast service could not be reached'));
+      expect(repository.load).toHaveBeenCalledTimes(1);
+
+      connection(true);
+      expect(repository.load).toHaveBeenCalledTimes(2);
+      expect(repository.load).toHaveBeenLastCalledWith({ force: true });
+      expect(store.status()).toBe('loading');
+    });
+
+    it('loads again while a stale forecast is on show', async () => {
+      const error = new ForecastUnavailableError('The forecast service could not be reached');
+      await answer({ ...network, source: 'stale-cache', error });
+      connection(false);
+      connection(true);
+
+      expect(repository.load).toHaveBeenCalledTimes(2);
+    });
+
+    it('leaves a good forecast alone', async () => {
+      await answer(network);
+      connection(false);
+      connection(true);
+
+      expect(repository.load).toHaveBeenCalledTimes(1);
+    });
+
+    it('waits for a load already under way', () => {
+      connection(false);
+      connection(true);
+
+      expect(repository.load).toHaveBeenCalledTimes(1);
+      expect(store.status()).toBe('loading');
+    });
+  });
 });

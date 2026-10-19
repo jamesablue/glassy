@@ -7,7 +7,8 @@ methods named after what the user does. RxJS appears only where the stores meet 
 
 | Store                  | Owns (writable)                                             | Derives (`computed`)                                                                                     | Read by                                                        |
 | ---------------------- | ----------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
-| `ForecastStore`        | the load request; the last loaded `ForecastResult`          | `status`, `bundle`, `fetchedAt`, `source`, `error`, `isRateLimited`                                      | every other store; loading overlay and notices                 |
+| `ForecastStore`        | the load request; the last loaded `ForecastResult`          | `status`, `bundle`, `fetchedAt`, `source`, `error`, `isRateLimited`; reloads when back online            | every other store; loading overlay and notices                 |
+| `ConnectivityStore`    | whether the browser reports a connection                    | `online`, from the `online` and `offline` events                                                         | `ForecastStore`; the offline notices                           |
 | `SettingsStore`        | `Preferences`: units and map choices, saved to localStorage | `units`, `mapPreferences`                                                                                | `MapUiStore`, `ConditionsStore`; units popover, unit pipes     |
 | `MapUiStore`           | selected spot, hovered spot, region filter, inspected point | `activeLayer`, `particlesOn`, `spotsOn` (through `SettingsStore`), `selectedSpot`, `isDepth`, field keys | `ConditionsStore`, `UrlStateSync`; map layers, controls, panel |
 | `TimelineStore`        | selected hour, playback                                     | `hourCount`, `nowHour`, `nowPosition`, `todayKey`, `selectedTime`, `isDaylight`, `days`, `nights`        | `ConditionsStore`, `UrlStateSync`; timeline, map layers        |
@@ -22,6 +23,7 @@ cancels the previous lookup, so a late answer never lands in the wrong readout.
 ```mermaid
 graph LR
   repo[(ForecastRepository)] --> forecast[ForecastStore]
+  connectivity[ConnectivityStore] --> forecast
   forecast --> timeline[TimelineStore]
   settings[SettingsStore] --> mapUi[MapUiStore]
   forecast --> conditions[ConditionsStore]

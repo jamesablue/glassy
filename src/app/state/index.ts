@@ -1,4 +1,5 @@
 export * from './conditions.store';
+export * from './connectivity.store';
 export * from './forecast.store';
 export * from './map-ui.store';
 export * from './settings.store';
