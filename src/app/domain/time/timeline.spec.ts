@@ -1,4 +1,4 @@
-import { currentHourIndex, groupHoursByDay, nightRuns, nowPosition } from './timeline';
+import { currentHourIndex, groupHoursByDay, hourIndexAt, nightRuns, nowPosition } from './timeline';
 
 const HOUR = 3600;
 const hourly = (start: number, count: number): number[] =>
@@ -25,6 +25,25 @@ describe('currentHourIndex', () => {
 
   it('handles an empty forecast', () => {
     expect(currentHourIndex([], 0)).toBe(0);
+  });
+});
+
+describe('hourIndexAt', () => {
+  const times = hourly(0, 3);
+
+  it('finds the hour that contains the time', () => {
+    expect(hourIndexAt(times, 0)).toBe(0);
+    expect(hourIndexAt(times, HOUR + 1800)).toBe(1);
+    expect(hourIndexAt(times, 2 * HOUR)).toBe(2);
+  });
+
+  it('clamps times outside the forecast to its first and last hours', () => {
+    expect(hourIndexAt(times, -10 * HOUR)).toBe(0);
+    expect(hourIndexAt(times, 10 * HOUR)).toBe(2);
+  });
+
+  it('handles an empty forecast', () => {
+    expect(hourIndexAt([], 0)).toBe(0);
   });
 });
 

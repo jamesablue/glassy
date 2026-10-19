@@ -34,6 +34,19 @@ export function currentHourIndex(times: readonly number[], nowSeconds: number): 
 }
 
 /**
+ * Index of the forecast hour that contains `unixSeconds`, clamped to the forecast: a time before it
+ * maps to the first hour and a time after it to the last. Unlike {@link currentHourIndex}, which
+ * opens a stale forecast at its start, this keeps a requested time as close as the forecast allows.
+ *
+ * @param times start of each forecast hour, Unix seconds
+ */
+export function hourIndexAt(times: readonly number[], unixSeconds: number): number {
+  const next = times.findIndex((time) => time > unixSeconds);
+  if (next < 0) return Math.max(times.length - 1, 0);
+  return Math.max(next - 1, 0);
+}
+
+/**
  * Where now sits on the timeline in fractional hours: the current hour's index plus how far
  * through that hour now is. Used to place the "now" marker between hour ticks.
  */

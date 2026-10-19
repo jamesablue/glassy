@@ -1,7 +1,10 @@
 import type { ScalarFieldId, VectorFieldId } from './forecast';
 import type { PaletteId } from './palette';
 
-export type LayerId = 'wind' | 'waves' | 'swell' | 'period' | 'depth';
+/** The map layers, in the order the layer picker lists them. */
+export const LAYER_IDS = ['wind', 'waves', 'swell', 'period', 'depth'] as const;
+
+export type LayerId = (typeof LAYER_IDS)[number];
 
 /** The kind of unit a layer's values are shown in, which picks the legend ticks. */
 export type FieldUnit = 'speed' | 'height' | 'period';
