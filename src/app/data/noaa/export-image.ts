@@ -1,11 +1,5 @@
+import type { TileCoords } from '../../core/terrain-tile-sources';
 import type { RasterFunction } from './raster-functions';
-
-/** A slippy-map tile: column `x` and row `y` (from the top) at zoom `z`. */
-export interface TileCoords {
-  readonly x: number;
-  readonly y: number;
-  readonly z: number;
-}
 
 /** Projected bounds in EPSG:3857 metres. */
 export type Bbox = readonly [xmin: number, ymin: number, xmax: number, ymax: number];

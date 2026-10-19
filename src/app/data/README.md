@@ -7,7 +7,9 @@ Talks to the outside world and turns responses into domain types.
 - `open-meteo/`: the four forecast requests (`forecastRequestUrls`, `OpenMeteoClient`), raw response types,
   and the adapter that packs the responses into a domain `ForecastBundle` (`toForecastBundle`)
 - `noaa/`: point elevations from the NOAA DEM ImageServer (`BathymetryClient`), the raster function rules
-  for land and depth tiles, and the `exportImage` tile URL builder the map's tile layer uses
+  for land and depth tiles, the `exportImage` tile URL builder, and `NoaaTerrainTileSources`, which implements
+  the `TERRAIN_TILE_SOURCES` token from `core/` with them so the map gets tile URLs without importing `data/`
+  (`provideNoaaTileSources()`)
 - `cache/`: `ForecastCache`, the last forecast in IndexedDB with a freshness window and a stale fallback
 - `forecast.repository.ts`: `ForecastRepository.load()`, cache-first loading used by the state layer
 - `forecast-errors.ts`, `retry-transient.ts`: typed load errors and the retry policy

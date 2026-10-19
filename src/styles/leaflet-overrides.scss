@@ -1,0 +1,131 @@
+// Leaflet builds its own DOM (panes, controls, popups, marker wrappers) outside any component's
+// view, so component styles cannot reach it. Everything Glassy changes about it lives here.
+
+.leaflet-container {
+  background: var(--map-bg);
+  font: inherit;
+}
+
+// ---------- custom panes (stacking order in map-panes.ts) ----------
+
+// Nothing drawn from data takes clicks: they pass through to the map, which opens the inspector.
+.leaflet-field-pane,
+.leaflet-depth-pane,
+.leaflet-particles-pane,
+.leaflet-land-pane,
+.leaflet-labels-pane {
+  pointer-events: none;
+}
+
+.field-canvas,
+.particle-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+}
+
+// Fades out when a zoom starts and back in after the redraw.
+.field-canvas {
+  transition: opacity 0.25s;
+}
+
+.leaflet-land-pane {
+  transition: filter 0.3s;
+
+  // Wind colours cover land and sea alike, so the hillshade is multiplied into them and the
+  // island's relief shows through the colour.
+  &.mode-wind {
+    mix-blend-mode: multiply;
+    filter: brightness(1.05) contrast(1.1);
+  }
+
+  // Sea layers only colour the water, so the land becomes a dark, grey backdrop that frames them.
+  &.mode-sea {
+    filter: brightness(0.36) contrast(1.15) saturate(0);
+  }
+}
+
+.leaflet-labels-pane {
+  opacity: 0.85;
+}
+
+// ---------- controls ----------
+
+// Room for the timeline along the bottom edge, and for the legend above it on the right.
+.leaflet-bottom.leaflet-left {
+  bottom: var(--timeline-height);
+}
+
+.leaflet-bottom.leaflet-right {
+  right: 12px;
+  bottom: calc(var(--timeline-height) + 52px);
+}
+
+.leaflet-control-attribution {
+  border-radius: 6px 0 0;
+  background: rgba(0, 0, 0, 0.45) !important;
+  color: rgba(255, 255, 255, 0.55) !important;
+  font-size: 10px;
+
+  a {
+    color: rgba(255, 255, 255, 0.75) !important;
+  }
+}
+
+.leaflet-control-zoom {
+  margin: 0 !important;
+  border: 0 !important;
+
+  a {
+    border-color: var(--line) !important;
+    background: var(--panel) !important;
+    color: var(--text) !important;
+    backdrop-filter: blur(8px);
+  }
+}
+
+// ---------- spot pins ----------
+
+// The marker is a zero-size anchor; SpotPinComponent draws the pin around it.
+.spot-icon {
+  border: 0;
+  background: none;
+}
+
+// ---------- point inspector popup ----------
+
+.picker {
+  .leaflet-popup-content-wrapper {
+    border-radius: 9px;
+    background: var(--popup-bg);
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.5);
+    color: var(--text);
+    backdrop-filter: blur(8px);
+  }
+
+  .leaflet-popup-content {
+    margin: 9px 12px;
+  }
+
+  .leaflet-popup-tip {
+    background: var(--popup-bg);
+  }
+}
+
+// ---------- small screens ----------
+
+@media (max-width: 760px) {
+  .leaflet-control-attribution {
+    max-width: calc(100vw - 8px);
+    overflow: hidden;
+    font-size: 9px;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  // Pinch to zoom instead.
+  .leaflet-bottom.leaflet-right {
+    display: none;
+  }
+}

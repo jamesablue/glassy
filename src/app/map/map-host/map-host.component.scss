@@ -1,0 +1,11 @@
+:host {
+  position: fixed;
+  inset: 0;
+  display: block;
+  background: var(--map-bg);
+}
+
+.map {
+  position: absolute;
+  inset: 0;
+}
