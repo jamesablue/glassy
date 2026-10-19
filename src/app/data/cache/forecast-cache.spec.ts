@@ -2,7 +2,11 @@ import { TestBed } from '@angular/core/testing';
 import { IDBFactory, IDBObjectStore } from 'fake-indexeddb';
 import { createStore, set } from 'idb-keyval';
 import { testForecastBundle } from '../../../testing/forecast-bundle';
+import { DEFAULT_GLASSY_CONFIG, type GlassyConfig } from '../../core/glassy-config';
 import { provideGlassyConfig } from '../../core/glassy-config.token';
+import { SPOT_CATALOG } from '../../core/spot-catalog.token';
+import type { Spot } from '../../domain/models';
+import { OAHU_SPOTS } from '../../domain/spots';
 import { FORECAST_CACHE_VERSION, ForecastCache } from './forecast-cache';
 
 const MINUTE = 60_000;
@@ -18,14 +22,34 @@ const typeTag = (value: unknown): string => Object.prototype.toString.call(value
 describe('ForecastCache', () => {
   const bundle = testForecastBundle();
 
-  function createCache(): ForecastCache {
+  /** A cache for an app with `spots` and the config's defaults, with `overrides` on top. */
+  function createCache(
+    spots: readonly Spot[] = OAHU_SPOTS,
+    overrides: Partial<GlassyConfig> = {},
+  ): ForecastCache {
+    TestBed.resetTestingModule();
     TestBed.configureTestingModule({
       providers: [
-        provideGlassyConfig({ cacheLifetimeMs: 45 * MINUTE, cacheMaxStaleMs: 12 * HOUR }),
+        provideGlassyConfig({
+          cacheLifetimeMs: 45 * MINUTE,
+          cacheMaxStaleMs: 12 * HOUR,
+          ...overrides,
+        }),
+        { provide: SPOT_CATALOG, useValue: spots },
       ],
     });
     return TestBed.inject(ForecastCache);
   }
+
+  /** The record a cache writes, with `changes` applied: for a record left by other code. */
+  const record = (changes: object): object => ({
+    version: FORECAST_CACHE_VERSION,
+    fetchedAt: FETCHED_AT,
+    bundle,
+    catalog: OAHU_SPOTS.map((spot) => spot.id),
+    grid: DEFAULT_GLASSY_CONFIG.grid,
+    ...changes,
+  });
 
   /** Lets the cache read the clock as `msAfterFetch` after the forecast was fetched. */
   function setClock(msAfterFetch: number): void {
@@ -104,15 +128,56 @@ describe('ForecastCache', () => {
       });
     });
 
+    it('reads a record in the shape it writes', async () => {
+      await set('latest', record({}), createStore('glassy', 'forecast'));
+      expect((await cache.getFresh())?.fetchedAt).toBe(FETCHED_AT);
+    });
+
     it.each([
-      ['an older version', { version: FORECAST_CACHE_VERSION - 1, fetchedAt: FETCHED_AT, bundle }],
-      ['no timestamp', { version: FORECAST_CACHE_VERSION, bundle }],
-      ['no bundle', { version: FORECAST_CACHE_VERSION, fetchedAt: FETCHED_AT, bundle: null }],
+      ['an older version', record({ version: FORECAST_CACHE_VERSION - 1 })],
+      ['no timestamp', record({ fetchedAt: undefined })],
+      ['no bundle', record({ bundle: null })],
+      ['no spot catalog, as version 1 wrote', record({ catalog: undefined })],
+      ['no grid', record({ grid: null })],
       ['something else entirely', 'not a record'],
-    ])('treats a record with %s as a miss', async (_case, record) => {
-      await set('latest', record, createStore('glassy', 'forecast'));
+    ])('treats a record with %s as a miss', async (_case, stored) => {
+      await set('latest', stored, createStore('glassy', 'forecast'));
       expect(await cache.getFresh()).toBeUndefined();
       expect(await cache.getStale()).toBeUndefined();
+    });
+
+    describe('when the app has changed since the forecast was cached', () => {
+      const [first, second, ...rest] = OAHU_SPOTS as readonly [Spot, Spot, ...Spot[]];
+      const extra: Spot = { ...first, id: 'new-spot', name: 'New spot' };
+
+      it.each([
+        ['a spot was added', [...OAHU_SPOTS, extra]],
+        ['a spot was removed', [second, ...rest]],
+        ['two spots swapped places', [second, first, ...rest]],
+        ['a spot was renamed', [{ ...first, id: 'renamed' }, second, ...rest]],
+      ])('treats it as a miss when %s', async (_case, spots) => {
+        await cache.put({ bundle, fetchedAt: FETCHED_AT });
+
+        const changed = createCache(spots);
+        expect(await changed.getFresh()).toBeUndefined();
+        expect(await changed.getStale()).toBeUndefined();
+      });
+
+      it('treats it as a miss when the grid moved', async () => {
+        await cache.put({ bundle, fetchedAt: FETCHED_AT });
+        const grid = { ...DEFAULT_GLASSY_CONFIG.grid, cols: DEFAULT_GLASSY_CONFIG.grid.cols + 1 };
+
+        const changed = createCache(OAHU_SPOTS, { grid });
+        expect(await changed.getFresh()).toBeUndefined();
+        expect(await changed.getStale()).toBeUndefined();
+      });
+
+      it('still reads it when only a spot’s details changed', async () => {
+        await cache.put({ bundle, fetchedAt: FETCHED_AT });
+
+        const changed = createCache([{ ...first, name: 'Renamed' }, second, ...rest]);
+        expect((await changed.getFresh())?.fetchedAt).toBe(FETCHED_AT);
+      });
     });
 
     it('carries on when the forecast cannot be stored', async () => {
