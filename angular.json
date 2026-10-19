@@ -101,7 +101,7 @@
             "runnerConfig": "vitest-base.config.mts",
             "coverageInclude": ["src/app/**/*.ts"],
             "coverageExclude": ["src/app/**/*.spec.ts"],
-            "coverageReporters": ["text-summary", "html", "lcov"]
+            "coverageReporters": ["text-summary", "html", "lcov", "json-summary"]
           }
         },
         "lint": {
