@@ -1,10 +1,12 @@
 import type { Page } from '@playwright/test';
+import { startAtRecordedMorning } from './clock';
 import { serveBlankTiles, serveRecordedBathymetry } from './map-sources';
 import { serveRecordedForecast } from './recorded-forecast';
 
 /**
  * Runs the app without the internet: recorded forecasts and depths, blank map tiles, and any other
- * request to another host aborted, so a test can never depend on a live service by accident.
+ * request to another host aborted, so a test can never depend on a live service by accident. The
+ * clock starts on the morning of the recording, so every run sees the same forecast hour.
  */
 export async function serveOffline(page: Page): Promise<void> {
   // Registered first, so it only answers what the more specific routes below leave alone.
@@ -15,4 +17,5 @@ export async function serveOffline(page: Page): Promise<void> {
   await serveRecordedForecast(page);
   await serveRecordedBathymetry(page);
   await serveBlankTiles(page);
+  await startAtRecordedMorning(page);
 }
