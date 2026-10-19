@@ -1,7 +1,8 @@
 import type { Provider } from '@angular/core';
-import { of } from 'rxjs';
+import { of, type Observable } from 'rxjs';
 import { CLOCK, type Clock } from '../app/core/clock';
 import { ForecastRepository, type ForecastResult } from '../app/data/forecast.repository';
+import { BathymetryClient } from '../app/data/noaa/bathymetry.client';
 import type { ForecastBundle } from '../app/domain/models';
 
 /** A clock that stays where a test puts it. */
@@ -23,4 +24,14 @@ export function provideTestForecast(bundle: ForecastBundle, now: number): Provid
     { provide: ForecastRepository, useValue: { load: () => of(result) } },
     { provide: CLOCK, useValue: new FakeClock(now) },
   ];
+}
+
+/**
+ * A `BathymetryClient` that answers every point with `elevationAt`, for components that show depths
+ * but may not import `data/` themselves.
+ */
+export function provideFakeBathymetry(
+  elevationAt: (lat: number, lon: number) => Observable<number>,
+): Provider {
+  return { provide: BathymetryClient, useValue: { elevationAt } };
 }

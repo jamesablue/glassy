@@ -1,0 +1,43 @@
+:host {
+  display: block;
+  min-width: 170px;
+  font-size: 12.5px;
+}
+
+.title {
+  margin: 0 0 4px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.rows {
+  margin: 0;
+}
+
+.row {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 2px 0;
+}
+
+dt {
+  color: var(--muted);
+}
+
+dd {
+  margin: 0;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.depth dd {
+  color: var(--accent-2);
+}
+
+.arrow {
+  display: inline-block;
+  width: 13px;
+  height: 13px;
+  vertical-align: -2px;
+}
