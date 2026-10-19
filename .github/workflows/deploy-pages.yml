@@ -1,0 +1,137 @@
+# Publishes the live demo to GitHub Pages (https://jamesablue.github.io/glassy/).
+#
+# - Runs when CI finishes on a push to main, and deploys only when that run passed, so a red build
+#   never reaches the site. It builds the exact commit CI tested.
+# - Can also be started by hand (workflow_dispatch) to redeploy. The github-pages environment,
+#   which Pages created, lets only main deploy.
+#
+# Pages serves the build under /glassy/, so it uses the github-pages build configuration
+# (angular.json), whose base href is /glassy/.
+name: Deploy to GitHub Pages
+run-name: ${{ github.event.workflow_run.display_title || format('Manual deploy of {0}', github.ref_name) }}
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+# Nothing by default; each job asks for what it needs.
+permissions: {}
+
+env:
+  NG_CLI_ANALYTICS: 'false'
+
+defaults:
+  run:
+    # Named explicitly so pipes fail too (bash -eo pipefail).
+    shell: bash
+
+jobs:
+  build:
+    name: Build
+    # A pull request from a fork can come from a branch called main too, so the event is checked as
+    # well as the branch filter above.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    outputs:
+      commit: ${{ steps.commit.outputs.sha }}
+    env:
+      BUILD_DIR: dist/glassy/browser
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          persist-credentials: false
+
+      - name: Read the commit
+        id: commit
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build (github-pages, base href /glassy/)
+        run: npm run build:pages
+
+      # Every asset URL in the build is relative to the base href, so a wrong one breaks the whole site.
+      - name: Check the base href
+        run: |
+          if ! grep -q '<base href="/glassy/">' "$BUILD_DIR/index.html"; then
+            echo "::error file=$BUILD_DIR/index.html::index.html does not have <base href=\"/glassy/\">. Check baseHref in the github-pages configuration in angular.json."
+            exit 1
+          fi
+
+      # Pages answers any path without a file behind it with 404.html. As a copy of index.html it
+      # boots the app, and UrlStateSync sends the unknown path back to /glassy/ with its query kept.
+      # .nojekyll tells Pages to serve the files as they are, without Jekyll.
+      - name: Add the 404 fallback and .nojekyll
+        run: |
+          cp "$BUILD_DIR/index.html" "$BUILD_DIR/404.html"
+          touch "$BUILD_DIR/.nojekyll"
+
+      - name: Upload the site
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: ${{ env.BUILD_DIR }}/
+          # Keeps .nojekyll, which the action leaves out by default.
+          include-hidden-files: true
+
+  deploy:
+    name: Deploy
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # One deploy at a time, and never cancel one halfway through. It is set on this job rather than
+    # the workflow because every CI run on main starts this workflow, failed ones too: a run that
+    # skips its jobs must not replace a deploy waiting in the queue.
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    permissions:
+      # Create the Pages deployment.
+      pages: write
+      # Request the OIDC token Pages uses to check which branch is deploying.
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
+
+      - name: Write job summary
+        env:
+          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
+          COMMIT: ${{ needs.build.outputs.commit }}
+          COMMIT_URL: ${{ github.server_url }}/${{ github.repository }}/commit/${{ needs.build.outputs.commit }}
+          CI_RUN_URL: ${{ github.event.workflow_run.html_url }}
+        run: |
+          {
+            echo "### Deployed to GitHub Pages"
+            echo ""
+            echo "| | |"
+            echo "| --- | --- |"
+            echo "| Site | $PAGE_URL |"
+            echo "| Commit | [\`${COMMIT:0:7}\`]($COMMIT_URL) |"
+            if [ -n "$CI_RUN_URL" ]; then
+              echo "| CI run | $CI_RUN_URL |"
+            else
+              echo "| CI run | none (started by hand) |"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
