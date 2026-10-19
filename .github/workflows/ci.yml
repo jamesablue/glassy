@@ -180,12 +180,18 @@ jobs:
           name: dist
           path: dist/glassy/browser/
 
+      # Playwright downloads a browser build for each OS release, so the cache key names the
+      # runner's release (ImageOS: ubuntu24, ubuntu26…) as well as the Playwright version.
+      - name: Read the runner's OS release
+        id: runner
+        run: echo "os=$ImageOS" >> "$GITHUB_OUTPUT"
+
       - name: Cache Playwright browsers
         id: browsers
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ needs.build.outputs.playwright-version }}
+          key: playwright-${{ steps.runner.outputs.os }}-${{ runner.arch }}-${{ needs.build.outputs.playwright-version }}
 
       - name: Install Chromium
         if: steps.browsers.outputs.cache-hit != 'true'
@@ -292,7 +298,7 @@ jobs:
         if: needs.build.result == 'success'
         env:
           PLAYWRIGHT_VERSION: ${{ needs.build.outputs.playwright-version }}
-        run: npx --yes "playwright@$PLAYWRIGHT_VERSION" merge-reports --reporter html ./all-blob-reports
+        run: npx --yes "playwright@$PLAYWRIGHT_VERSION" merge-reports --config playwright.merge.config.ts --reporter html ./all-blob-reports
 
       - name: Upload HTML report
         if: needs.build.result == 'success'

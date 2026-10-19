@@ -113,7 +113,8 @@
               "e2e/**/*.ts",
               "e2e/**/*.mts",
               "scripts/**/*.ts",
-              "playwright.config.ts"
+              "playwright.config.ts",
+              "playwright.merge.config.ts"
             ]
           }
         }
