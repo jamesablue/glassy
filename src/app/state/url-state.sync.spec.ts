@@ -1,8 +1,7 @@
 import { Location } from '@angular/common';
-import { provideLocationMocks, SpyLocation } from '@angular/common/testing';
+import { SpyLocation } from '@angular/common/testing';
 import { ApplicationRef } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { provideRouter, Router } from '@angular/router';
 import { of, Subject } from 'rxjs';
 import { recordedForecastBundle } from '../../testing/forecast-bundle';
 import { FakeClock } from '../../testing/state-providers';
@@ -26,48 +25,50 @@ describe('UrlStateSync', () => {
   /** Set by a test that wants to hold the forecast back; otherwise it loads straight away. */
   let heldForecast: Subject<ForecastResult> | undefined;
   let location: SpyLocation;
-  let router: Router;
   let mapUi: MapUiStore;
   let timeline: TimelineStore;
-
-  /** Configures a fresh app. The URL sync starts the way `app.config.ts` starts it. */
-  function configure(): void {
-    TestBed.configureTestingModule({
-      providers: [
-        provideRouter([]),
-        provideLocationMocks(),
-        provideUrlStateSync(),
-        { provide: ForecastRepository, useValue: { load: () => heldForecast ?? of(result) } },
-        { provide: CLOCK, useValue: new FakeClock(MORNING) },
-      ],
-    });
-    location = TestBed.inject(Location) as SpyLocation;
-    router = TestBed.inject(Router);
-    mapUi = TestBed.inject(MapUiStore);
-    timeline = TestBed.inject(TimelineStore);
-  }
 
   beforeEach(() => {
     localStorage.clear();
     heldForecast = undefined;
-    configure();
   });
 
   afterEach(() => {
     vi.useRealTimers();
   });
 
-  /** Lets effects run and navigations and loads finish. */
+  /** Lets effects run and loads finish. */
   async function settle(): Promise<void> {
     TestBed.tick();
     await TestBed.inject(ApplicationRef).whenStable();
   }
 
-  /** Starts the app on `url`, the way a browser opens a shared link. */
+  /**
+   * Starts a fresh app on `url`, the way a browser opens a shared link. The URL sync starts the way
+   * `app.config.ts` starts it, as the app initializes. Waits for the forecast unless it is held back.
+   */
   async function open(url: string): Promise<void> {
-    location.setInitialPath(url);
-    router.initialNavigation();
-    await settle();
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      providers: [
+        provideUrlStateSync(),
+        {
+          provide: Location,
+          useFactory: () => {
+            const spy = new SpyLocation();
+            spy.setInitialPath(url);
+            return spy;
+          },
+        },
+        { provide: ForecastRepository, useValue: { load: () => heldForecast ?? of(result) } },
+        { provide: CLOCK, useValue: new FakeClock(MORNING) },
+      ],
+    });
+    location = TestBed.inject(Location) as SpyLocation;
+    mapUi = TestBed.inject(MapUiStore);
+    timeline = TestBed.inject(TimelineStore);
+    if (heldForecast) TestBed.tick();
+    else await settle();
   }
 
   const query = (): Record<string, string> =>
@@ -93,11 +94,7 @@ describe('UrlStateSync', () => {
     it('waits for the forecast before applying the hour, keeping it in the URL', async () => {
       const forecast = new Subject<ForecastResult>();
       heldForecast = forecast;
-      location.setInitialPath('/?t=2026-10-19T06');
-      router.initialNavigation();
-      TestBed.tick();
-      await new Promise((resolve) => setTimeout(resolve));
-      TestBed.tick();
+      await open('/?t=2026-10-19T06');
 
       expect(timeline.hourCount()).toBe(0);
       expect(location.urlChanges).toEqual([]);
@@ -134,8 +131,6 @@ describe('UrlStateSync', () => {
         PREFERENCES_STORAGE_KEY,
         JSON.stringify({ map: { layer: 'wind', particlesOn: true, spotsOn: true } }),
       );
-      TestBed.resetTestingModule();
-      configure();
 
       await open('/?spot=sharks');
 
@@ -143,22 +138,28 @@ describe('UrlStateSync', () => {
       expect(query()).toEqual({ spot: 'sharks', layer: 'wind' });
     });
 
-    it('does not touch the URL before it has read it', async () => {
-      location.setInitialPath('/?layer=depth');
-      mapUi.setLayer('swell');
-      await settle();
-      expect(location.urlChanges).toEqual([]);
+    it('reads the URL before it writes, so a shared link wins over saved choices', async () => {
+      localStorage.setItem(
+        PREFERENCES_STORAGE_KEY,
+        JSON.stringify({ map: { layer: 'swell', particlesOn: true, spotsOn: true } }),
+      );
 
-      router.initialNavigation();
-      await settle();
+      await open('/?layer=depth');
+
       expect(mapUi.activeLayer()).toBe('depth');
+      expect(location.urlChanges).toEqual([]);
+    });
+
+    it('sends any other path back to the map, keeping its query', async () => {
+      await open('/somewhere/else?layer=wind');
+
+      expect(location.path()).toBe('/?layer=wind');
+      expect(mapUi.activeLayer()).toBe('wind');
     });
 
     it('follows later navigations it did not make, such as the back button', async () => {
       await open('/?spot=hanauma');
       location.simulateUrlPop('/?spot=sharks&layer=swell');
-      // The router handles popstate on the next task.
-      await new Promise((resolve) => setTimeout(resolve));
       await settle();
 
       expect(mapUi.selectedSpotId()).toBe('sharks');
@@ -239,11 +240,20 @@ describe('UrlStateSync', () => {
   });
 
   it('starts only once', async () => {
-    TestBed.inject(UrlStateSync).start();
     await open('/?layer=depth');
+    TestBed.inject(UrlStateSync).start();
     mapUi.setLayer('wind');
     await settle();
 
     expect(location.urlChanges).toEqual(['replace: /?layer=wind']);
+  });
+
+  it('stops following the back button when the app is destroyed', async () => {
+    await open('/?spot=hanauma');
+    const spot = mapUi.selectedSpotId;
+    TestBed.resetTestingModule();
+
+    location.simulateUrlPop('/?spot=sharks');
+    expect(spot()).toBe('hanauma');
   });
 });

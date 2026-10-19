@@ -1,4 +1,6 @@
+import { Location } from '@angular/common';
 import {
+  DestroyRef,
   effect,
   inject,
   Injectable,
@@ -8,7 +10,6 @@ import {
   untracked,
   type EnvironmentProviders,
 } from '@angular/core';
-import { Router, type ParamMap } from '@angular/router';
 import { LAYER_IDS } from '../domain/models';
 import { hourKey, parseHourKey } from '../domain/time';
 import { MapUiStore } from './map-ui.store';
@@ -27,9 +28,6 @@ interface PendingTime {
   readonly seconds: number;
 }
 
-/** Marks the navigations this service makes, so it does not read its own writes back. */
-const OWN_NAVIGATION = Symbol('UrlStateSync');
-
 /**
  * Keeps the view in the URL so it can be shared as a link, for example
  * `/?layer=depth&spot=hanauma&t=2026-10-20T08`:
@@ -41,48 +39,51 @@ const OWN_NAVIGATION = Symbol('UrlStateSync');
  * `t` names a wall-clock hour rather than an index, so a link opened later still points at the same
  * hour; it is applied once the forecast has loaded and clamped to the forecast's range.
  *
- * **URL to state** happens for every navigation this service did not make itself: the page the app
- * opens on, and any later one. A parameter that is missing, unknown or malformed is ignored and
- * leaves its part of the view as it was, so a link without `layer` keeps the viewer's own saved
- * layer.
+ * Glassy is a single view whose state lives in the query string, so this talks to `Location`
+ * directly rather than through the router:
  *
- * **State to URL** starts once the opening URL has been read, so it cannot overwrite a shared link
- * before it is applied. Writes merge into the existing query, replace the history entry instead of
- * adding one (stepping through 120 hours should not fill the back button) and are skipped when the
- * URL already matches.
+ * - **URL to state** happens when the app starts, before anything can write, and on every
+ *   `popstate` (the back and forward buttons). A parameter that is missing, unknown or malformed is
+ *   ignored and leaves its part of the view as it was, so a link without `layer` keeps the viewer's
+ *   own saved layer.
+ * - **Any other path**, such as an old or mistyped link (or GitHub Pages' `404.html` fallback, which
+ *   serves the app for every path), is replaced by the app's own path with the query kept.
+ * - **State to URL** merges into the existing query, so parameters that belong to someone else
+ *   stay. It replaces the history entry instead of adding one (stepping through 120 hours should not
+ *   fill the back button) and is skipped when the URL already matches. `Location` reports only
+ *   `popstate` to its subscribers, so these writes are never read back.
  */
 @Injectable({ providedIn: 'root' })
 export class UrlStateSync {
-  private readonly router = inject(Router);
+  private readonly location = inject(Location);
   private readonly injector = inject(Injector);
+  private readonly destroyRef = inject(DestroyRef);
   private readonly mapUi = inject(MapUiStore);
   private readonly timeline = inject(TimelineStore);
 
   private readonly pendingTime = signal<PendingTime | null>(null);
-  private readonly restored = signal(false);
   private started = false;
 
   /** Starts syncing. {@link provideUrlStateSync} calls it at startup; later calls do nothing. */
   start(): void {
     if (this.started) return;
     this.started = true;
+
+    const { path, query } = splitUrl(this.location.path());
+    if (path !== '' && path !== '/') this.location.replaceState(appUrl(query));
+    this.restore(new URLSearchParams(query));
+
+    const popstate = this.location.subscribe(({ url }) =>
+      this.restore(new URLSearchParams(splitUrl(url ?? this.location.path()).query)),
+    );
+    this.destroyRef.onDestroy(() => popstate.unsubscribe());
+
     const options = { injector: this.injector };
-    effect(() => this.readUrl(), options);
     effect(() => this.applyPendingTime(), options);
     effect(() => this.writeUrl(), options);
   }
 
-  private readUrl(): void {
-    const navigation = this.router.lastSuccessfulNavigation();
-    if (!navigation || navigation.extras.info === OWN_NAVIGATION) return;
-    const url = navigation.finalUrl ?? navigation.extractedUrl;
-    untracked(() => {
-      this.restore(url.queryParamMap);
-      this.restored.set(true);
-    });
-  }
-
-  private restore(params: ParamMap): void {
+  private restore(params: URLSearchParams): void {
     const layer = oneOf(LAYER_IDS, params.get('layer'));
     if (layer) this.mapUi.setLayer(layer);
 
@@ -104,7 +105,6 @@ export class UrlStateSync {
   }
 
   private writeUrl(): void {
-    if (!this.restored()) return;
     const layer = this.mapUi.activeLayer();
     const state: UrlState = {
       layer: layer === DEFAULT_PREFERENCES.map.layer ? null : layer,
@@ -112,13 +112,16 @@ export class UrlStateSync {
       t: this.pendingTime()?.key ?? this.selectedHourKey(),
     };
     untracked(() => {
-      if (this.urlMatches(state)) return;
-      void this.router.navigate([], {
-        queryParams: state,
-        queryParamsHandling: 'merge',
-        replaceUrl: true,
-        info: OWN_NAVIGATION,
-      });
+      const current = new URLSearchParams(splitUrl(this.location.path()).query);
+      const next = new URLSearchParams(current);
+      for (const param of URL_STATE_PARAMS) {
+        const value = state[param];
+        if (value === null) next.delete(param);
+        else next.set(param, value);
+      }
+      if (next.toString() !== current.toString()) {
+        this.location.replaceState(appUrl(next.toString()));
+      }
     });
   }
 
@@ -128,14 +131,23 @@ export class UrlStateSync {
     const isNow = this.timeline.selectedHour() === this.timeline.nowHour();
     return time === undefined || isNow ? null : hourKey(time);
   }
-
-  private urlMatches(state: UrlState): boolean {
-    const current = this.router.parseUrl(this.router.url).queryParamMap;
-    return URL_STATE_PARAMS.every((param) => current.get(param) === state[param]);
-  }
 }
 
 /** Restores the view from the URL at startup and keeps the URL up to date from then on. */
 export function provideUrlStateSync(): EnvironmentProviders {
   return provideAppInitializer(() => inject(UrlStateSync).start());
+}
+
+/** A path from `Location` (relative to the base href) split at its query, without a fragment. */
+function splitUrl(url: string): { path: string; query: string } {
+  const withoutHash = url.split('#', 1)[0] ?? '';
+  const at = withoutHash.indexOf('?');
+  return at < 0
+    ? { path: withoutHash, query: '' }
+    : { path: withoutHash.slice(0, at), query: withoutHash.slice(at + 1) };
+}
+
+/** The app's one page with `query`, relative to the base href. */
+function appUrl(query: string): string {
+  return query === '' ? '/' : `/?${query}`;
 }
