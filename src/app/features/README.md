@@ -54,8 +54,8 @@ functions next to the components that use them:
   pins and readout always agree.
 - **Popovers are native.** The Units and About buttons use `popovertarget`; the browser puts the
   popover in the top layer, closes it on Escape or an outside click, keeps one open at a time and
-  sets `aria-expanded`. `PopoverComponent` (in `shared/`) follows its `toggle` events, so the About
-  text can load on first open and the shell can leave Escape to an open popover.
+  sets `aria-expanded`. `PopoverComponent` (in `shared/`) follows its `beforetoggle` events, so the
+  About text can load on first open and the shell can leave Escape to an open popover.
 - **Two `@defer` blocks** keep the spot details and the About text out of the initial bundle. Both
   prefetch when the browser is idle, so they are ready by the time anyone opens them.
 
