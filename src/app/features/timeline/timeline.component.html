@@ -1,0 +1,47 @@
+<button type="button" class="play" [attr.aria-label]="playLabel()" (click)="togglePlay()">
+  <glassy-icon [name]="playIcon()" />
+</button>
+
+<div
+  #track
+  class="track"
+  role="slider"
+  tabindex="0"
+  aria-label="Forecast hour"
+  aria-valuemin="0"
+  [attr.aria-valuemax]="maxHour()"
+  [attr.aria-valuenow]="hour()"
+  [attr.aria-valuetext]="label()"
+  (pointerdown)="onPointerDown($event)"
+  (pointermove)="onPointerMove($event)"
+  (pointerup)="onPointerEnd()"
+  (pointercancel)="onPointerEnd()"
+  (keydown)="onKeydown($event)"
+>
+  <div class="nights">
+    @for (night of nights(); track night.start) {
+      <div class="night" [style.left.%]="night.left" [style.width.%]="night.width"></div>
+    }
+  </div>
+  <div class="days">
+    @for (day of days(); track day.key) {
+      <div
+        class="day"
+        [class.today]="day.isToday"
+        [style.left.%]="day.left"
+        [style.width.%]="day.width"
+      >
+        {{ day.label }}
+      </div>
+    }
+  </div>
+  @if (hourCount()) {
+    <div class="progress" [style.width.%]="position()"></div>
+    <div class="now-mark" [style.left.%]="nowLeft()"></div>
+    <div class="handle" [style.--position]="handlePosition()">
+      <span class="handle-label">{{ label() }}</span>
+    </div>
+  }
+</div>
+
+<button type="button" class="now" (click)="goToNow()">Now</button>
