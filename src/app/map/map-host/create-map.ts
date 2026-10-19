@@ -22,9 +22,25 @@ const DATA_ATTRIBUTION =
   'Forecast <a href="https://open-meteo.com/">Open-Meteo</a> · ' +
   'Depth <a href="https://www.ncei.noaa.gov/">NOAA NCEI</a>';
 
-/** A Leaflet map in `container` with Glassy's options, controls and panes. */
-export function createMap(container: HTMLElement): L.Map {
-  const map = L.map(container, MAP_OPTIONS);
+/** Leaflet's own animations, all off when the user asks for reduced motion. */
+function motionOptions(reducedMotion: boolean): L.MapOptions {
+  const animate = !reducedMotion;
+  return {
+    zoomAnimation: animate,
+    fadeAnimation: animate,
+    markerZoomAnimation: animate,
+    inertia: animate,
+  };
+}
+
+/**
+ * A Leaflet map in `container` with Glassy's options, controls and panes.
+ *
+ * @param reducedMotion the user asked for reduced motion: zooms snap instead of animating, tiles
+ *   appear without fading in and a drag stops where it is let go
+ */
+export function createMap(container: HTMLElement, reducedMotion = false): L.Map {
+  const map = L.map(container, { ...MAP_OPTIONS, ...motionOptions(reducedMotion) });
   L.control.zoom({ position: 'bottomright' }).addTo(map);
   L.control
     .attribution({ position: 'bottomleft', prefix: ATTRIBUTION_PREFIX })

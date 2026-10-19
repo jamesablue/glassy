@@ -1,15 +1,18 @@
 // The host sits in a zero-size Leaflet marker at the spot, so the dot's centre lands on it.
 :host {
   position: absolute;
-  left: -8px;
-  top: -11px;
+  left: -12px;
+  top: -12px;
   display: block;
 }
 
+// At least 24 × 24 px to tap or click (WCAG 2.5.8), with the dot in the middle of that square.
 .pin {
   display: flex;
   align-items: center;
-  padding: 0;
+  min-width: 24px;
+  min-height: 24px;
+  padding: 0 0 0 4px;
   border: 0;
   background: none;
   color: inherit;
@@ -27,7 +30,7 @@
   flex: none;
   width: 16px;
   height: 16px;
-  margin: 3px 0;
+  margin: 4px 0;
   border: 2px solid #fff;
   border-radius: 50%;
   background: var(--rating-color);
@@ -55,8 +58,12 @@
   font-weight: 600;
 }
 
-.compact .tag {
-  display: none;
+.compact {
+  padding-right: 4px;
+
+  .tag {
+    display: none;
+  }
 }
 
 .no-name .name {

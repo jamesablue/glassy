@@ -24,9 +24,12 @@ import {
   SHOW_NAMES_MIN_ZOOM,
   type LabelMode,
 } from '../../../domain/geo';
+import { PREFERS_REDUCED_MOTION } from '../../../core/reduced-motion';
 import { surfText } from '../../../domain/units';
 import { SettingsStore, type SpotPin } from '../../../state';
+import { panelInsets } from '../../map-host/frame-oahu';
 import { MapContext } from '../../map-host/map-context';
+import { centreShowing, shrinkArea, visibleArea } from '../../map-host/visible-area';
 import { keepLayerOnMap } from '../keep-layer-on-map';
 import { SpotPinComponent } from './spot-pin.component';
 
@@ -34,10 +37,10 @@ import { SpotPinComponent } from './spot-pin.component';
 const FOCUS_ZOOM = 11.5;
 /** A selected spot this far out (or further) is flown to even if it is already on screen. */
 const FOCUS_BELOW_ZOOM = 10.5;
-/** A selected spot within this share of the view's edges is flown to the middle. */
+/** A selected spot within this share of the visible area's edges is flown to its middle. */
 const FOCUS_EDGE = 0.2;
 /** Room kept around a pin brought into view by keyboard focus, CSS pixels. */
-const REVEAL_PADDING: L.PointTuple = [48, 48];
+const REVEAL_PADDING = 48;
 /** Lifts a highlighted pin above its neighbours, as Leaflet's `riseOnHover` does on the map. */
 const HOVER_Z_OFFSET = 1000;
 
@@ -55,7 +58,9 @@ interface PinMarker {
  *
  * Labels are placed with the domain's collision-free `placeLabels` whenever the map settles or the
  * pins change: the selected spot and the best scores get full labels, others shrink to the surf
- * height or a dot. Selecting a spot that is off-centre or too far out flies the map to it.
+ * height or a dot. Selecting a spot that is off-centre or too far out flies the map to it, into the
+ * middle of the part of the map the panels leave uncovered (above the sheet on a phone, beside the
+ * side panel on wider screens); with reduced motion it moves there at once.
  *
  * Hovering is shared with the ranking both ways: `hoveredId` highlights a pin (its full label,
  * raised above its neighbours) and `pinHover` reports the pin under the pointer.
@@ -75,6 +80,7 @@ export class SpotMarkersComponent {
   private readonly environment = inject(EnvironmentInjector);
   private readonly appRef = inject(ApplicationRef);
   private readonly settings = inject(SettingsStore);
+  private readonly reducedMotion = inject(PREFERS_REDUCED_MOTION);
   private readonly heightUnit = computed(() => this.settings.units().height);
   private readonly group = L.layerGroup();
   private readonly markers = new Map<string, PinMarker>();
@@ -178,16 +184,39 @@ export class SpotMarkersComponent {
     return entry;
   }
 
-  /** Flies to a selected spot unless it is already well inside the view at a useful zoom. */
+  /**
+   * Flies to a selected spot unless it is already well inside the visible area at a useful zoom.
+   * The spot's details open with it, so on a phone the area is what the open sheet leaves.
+   */
   private focus(map: L.Map, pin: SpotPin): void {
+    const size = map.getSize();
+    const area = visibleArea(size, panelInsets(size.x, size.y, true));
     const target = L.latLng(pin.lat, pin.lon);
-    const comfortable = map.getBounds().pad(-FOCUS_EDGE).contains(target);
+    const comfortable = shrinkArea(area, FOCUS_EDGE).contains(map.latLngToContainerPoint(target));
     if (comfortable && map.getZoom() >= FOCUS_BELOW_ZOOM) return;
-    map.flyTo(target, Math.max(map.getZoom(), FOCUS_ZOOM), { duration: 0.8 });
+    const zoom = Math.max(map.getZoom(), FOCUS_ZOOM);
+    const centre = centreShowing(map, target, zoom, area.getCenter());
+    if (untracked(this.reducedMotion)) map.setView(centre, zoom, { animate: false });
+    else map.flyTo(centre, zoom, { duration: 0.8 });
   }
 
-  /** Pans just enough to show a pin that keyboard focus moved to. */
+  /** Pans just enough to show a pin that keyboard focus moved to, clear of the panels. */
   private reveal(pin: SpotPin): void {
-    this.context.map()?.panInside([pin.lat, pin.lon], { padding: REVEAL_PADDING });
+    const map = this.context.map();
+    if (!map) return;
+    const size = map.getSize();
+    const area = visibleArea(
+      size,
+      panelInsets(size.x, size.y, untracked(this.selected) !== undefined),
+    );
+    // A short visible area (a phone held sideways, a zoomed-in page) gets less room around the pin.
+    const { x, y } = area.getSize();
+    const padding = Math.min(REVEAL_PADDING, x / 4, y / 4);
+    const room = L.point(padding, padding);
+    map.panInside([pin.lat, pin.lon], {
+      paddingTopLeft: area.getTopLeft().add(room),
+      paddingBottomRight: size.subtract(area.getBottomRight()).add(room),
+      animate: !untracked(this.reducedMotion),
+    });
   }
 }

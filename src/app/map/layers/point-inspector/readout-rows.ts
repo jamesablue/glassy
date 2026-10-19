@@ -18,7 +18,14 @@ export interface ReadoutRow {
   readonly value: string;
   /** Compass bearing the value travels towards, for its arrow. Absent for values with no direction. */
   readonly heading?: number;
+  /** Why the value is missing, shown as a tooltip and read out after it. */
+  readonly note?: string;
 }
+
+/** What the depth row says when NOAA has no elevation for the point. */
+export const NO_DEPTH_DATA = 'NOAA has no depth data for this point';
+/** What the depth row says when the lookup failed. */
+export const DEPTH_LOOKUP_FAILED = 'Couldn’t get the depth from NOAA. Tap the map again to retry.';
 
 /** Coordinates to four decimals (about 11 m) and the hour shown, for example "21.2690°, -157.6936° · Sun 3 PM". */
 export function readoutTitle({ point, time }: PointReading): string {
@@ -29,9 +36,11 @@ export function readoutTitle({ point, time }: PointReading): string {
 /** Wind, waves and swell at the point (or why there are none), then the depth or land height. */
 export function readoutRows(reading: PointReading, units: UnitSettings): ReadoutRow[] {
   const { forecast } = reading;
+  const note = depthNote(reading.elevation);
   const depth: ReadoutRow = {
     label: 'Depth',
     value: elevationText(reading.elevation, units.height),
+    ...(note ? { note } : {}),
   };
   switch (forecast.status) {
     case 'ready':
@@ -55,6 +64,18 @@ export function elevationText(elevation: ElevationReading, unit: HeightUnit): st
       return elevation.meters < 0
         ? formatDepth(-elevation.meters, unit)
         : `land · ${formatDepth(elevation.meters, unit)} elev.`;
+  }
+}
+
+/** Why there is no depth to show, or `undefined` when there is one (or it is on its way). */
+export function depthNote(elevation: ElevationReading): string | undefined {
+  switch (elevation.status) {
+    case 'no-data':
+      return NO_DEPTH_DATA;
+    case 'error':
+      return DEPTH_LOOKUP_FAILED;
+    default:
+      return undefined;
   }
 }
 

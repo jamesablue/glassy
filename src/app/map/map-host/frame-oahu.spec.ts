@@ -1,5 +1,5 @@
 import type * as L from 'leaflet';
-import { frameOahu, framePadding, OAHU_BOUNDS } from './frame-oahu';
+import { frameOahu, framePadding, OAHU_BOUNDS, panelInsets } from './frame-oahu';
 
 describe('framePadding', () => {
   it('keeps the top and bottom clear on phones', () => {
@@ -64,5 +64,18 @@ describe('frameOahu', () => {
       animate: false,
     });
     expect(map.listening()).toBe(false);
+  });
+});
+
+describe('panelInsets', () => {
+  it('keeps clear of the side panel, the menu and the timeline on wider screens', () => {
+    const insets = { top: 12, right: 160, bottom: 90, left: 344 };
+    expect(panelInsets(760, 600, false)).toEqual(insets);
+    expect(panelInsets(1600, 900, true)).toEqual(insets);
+  });
+
+  it('keeps clear of the sheet above the timeline on a phone, more when it is open', () => {
+    expect(panelInsets(390, 800, false)).toEqual({ top: 56, right: 52, bottom: 156, left: 8 });
+    expect(panelInsets(390, 800, true)).toEqual({ top: 56, right: 52, bottom: 464, left: 8 });
   });
 });
