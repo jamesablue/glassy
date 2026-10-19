@@ -33,6 +33,11 @@ export function testForecastBundle(hourCount = 3, start = 1_800_000_000): Foreca
   };
 }
 
+/** 8:30 AM on the recorded forecast's first day (Sunday 18 October 2026) in Honolulu. */
+export const RECORDED_MORNING = Date.UTC(2026, 9, 18, 18, 30);
+/** The forecast hour that contains {@link RECORDED_MORNING}. */
+export const RECORDED_MORNING_HOUR = 8;
+
 /**
  * The recorded forecast for every Oahu spot (`fixtures/spot-forecast.fixture.json`, 48 hours from
  * midnight on 18 October 2026 in Honolulu), on a small synthetic grid. Its scores and rankings are
