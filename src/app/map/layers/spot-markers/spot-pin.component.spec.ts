@@ -82,6 +82,23 @@ describe('SpotPinComponent', () => {
     expect(selected).toEqual(['hanauma']);
   });
 
+  it('reports the pointer moving onto and off it', () => {
+    const { fixture, button } = render();
+    const hovers: boolean[] = [];
+    fixture.componentInstance.pinHover.subscribe((on) => hovers.push(on));
+    button.dispatchEvent(new MouseEvent('mouseenter'));
+    button.dispatchEvent(new MouseEvent('mouseleave'));
+    expect(hovers).toEqual([true, false]);
+  });
+
+  it('shows its label in full while highlighted from elsewhere', () => {
+    const { fixture, button } = render(HANAUMA, 'dot');
+    expect(button.classList.contains('hovered')).toBe(false);
+    fixture.componentRef.setInput('hovered', true);
+    fixture.detectChanges();
+    expect(button.classList.contains('hovered')).toBe(true);
+  });
+
   it('asks to be brought into view on keyboard focus only', () => {
     const { fixture, button } = render();
     let focused = 0;

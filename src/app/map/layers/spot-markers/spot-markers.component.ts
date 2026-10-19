@@ -38,6 +38,8 @@ const FOCUS_BELOW_ZOOM = 10.5;
 const FOCUS_EDGE = 0.2;
 /** Room kept around a pin brought into view by keyboard focus, CSS pixels. */
 const REVEAL_PADDING: L.PointTuple = [48, 48];
+/** Lifts a highlighted pin above its neighbours, as Leaflet's `riseOnHover` does on the map. */
+const HOVER_Z_OFFSET = 1000;
 
 /** A pin on the map: its Leaflet marker and the Angular component inside it. */
 interface PinMarker {
@@ -54,13 +56,20 @@ interface PinMarker {
  * Labels are placed with the domain's collision-free `placeLabels` whenever the map settles or the
  * pins change: the selected spot and the best scores get full labels, others shrink to the surf
  * height or a dot. Selecting a spot that is off-centre or too far out flies the map to it.
+ *
+ * Hovering is shared with the ranking both ways: `hoveredId` highlights a pin (its full label,
+ * raised above its neighbours) and `pinHover` reports the pin under the pointer.
  */
 @Component({ selector: 'glassy-spot-markers', template: '' })
 export class SpotMarkersComponent {
   /** One pin per spot, in catalog order. */
   readonly pins = input.required<readonly SpotPin[]>();
+  /** The spot to highlight, for example while its row in the ranking is hovered. */
+  readonly hoveredId = input<string | null>(null);
   /** A pin was clicked or activated from the keyboard. Emits the spot id. */
   readonly pinSelect = output<string>();
+  /** The pointer moved onto a pin (its spot id) or off it (`null`). */
+  readonly pinHover = output<string | null>();
 
   private readonly context = inject(MapContext);
   private readonly environment = inject(EnvironmentInjector);
@@ -103,6 +112,12 @@ export class SpotMarkersComponent {
       const map = this.context.map();
       if (pin && map) untracked(() => this.focus(map, pin));
     });
+    effect((onCleanup) => {
+      this.pins(); // The markers are made from the pins, so look again when they change.
+      const marker = this.markers.get(this.hoveredId() ?? '')?.marker;
+      marker?.setZIndexOffset(HOVER_Z_OFFSET);
+      onCleanup(() => marker?.setZIndexOffset(0));
+    });
     inject(DestroyRef).onDestroy(() => {
       this.markers.forEach(({ component }) => component.destroy());
       this.markers.clear();
@@ -133,13 +148,16 @@ export class SpotMarkersComponent {
   private add(spotPin: SpotPin): PinMarker {
     const pin = signal(spotPin);
     const mode = signal<LabelMode>('dot');
+    const hovered = computed(() => this.hoveredId() === pin().id);
     const component = createComponent(SpotPinComponent, {
       environmentInjector: this.environment,
       bindings: [
         inputBinding('pin', pin),
         inputBinding('mode', mode),
         inputBinding('heightUnit', this.heightUnit),
+        inputBinding('hovered', hovered),
         outputBinding<string>('pinSelect', (id) => this.pinSelect.emit(id)),
+        outputBinding<boolean>('pinHover', (on) => this.pinHover.emit(on ? pin().id : null)),
         outputBinding('pinFocus', () => this.reveal(pin())),
       ],
     });

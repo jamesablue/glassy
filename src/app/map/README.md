@@ -21,7 +21,7 @@ graph TD
   host --> field["ScalarFieldLayerComponent<br/>[field] [grid] [palette] [hour]"]
   host --> depth["DepthLayerComponent<br/>[visible]"]
   host --> particles["ParticleLayerComponent<br/>[vectors] [grid] [hour] [mode] [enabled]"]
-  host --> markers["SpotMarkersComponent<br/>[pins] (pinSelect)"]
+  host --> markers["SpotMarkersComponent<br/>[pins] [hoveredId] (pinSelect) (pinHover)"]
   host --> inspector[PointInspectorComponent]
   terrain --> noaa1[NoaaExportTileLayer]
   depth --> noaa2[NoaaExportTileLayer]
@@ -32,7 +32,9 @@ graph TD
 ```
 
 The root `App` composes the tree and binds each layer to the stores (`MapUiStore`, `ForecastStore`,
-`TimelineStore`, `ConditionsStore`). A map click goes to `MapUiStore.inspect`, a pin to `MapUiStore.selectSpot`.
+`TimelineStore`, `ConditionsStore`). A map click goes to `MapUiStore.inspect`, a pin to `MapUiStore.selectSpot`,
+and the pointer over a pin to `MapUiStore.hoverSpot`, which the ranking reads to highlight the spot's row; a
+hovered row comes back the same way as `[hoveredId]`, which shows the pin's full label and raises it.
 
 ## How the pieces talk
 

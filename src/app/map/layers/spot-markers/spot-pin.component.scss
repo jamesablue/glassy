@@ -71,9 +71,11 @@
   box-shadow: 0 0 0 3px var(--accent-2);
 }
 
-// Hover or keyboard focus shows a squeezed label in full, on a solid background.
+// Hover, keyboard focus or a hovered ranking row shows a squeezed label in full, on a solid
+// background.
 .pin:hover,
-.pin:focus-visible {
+.pin:focus-visible,
+.pin.hovered {
   .tag {
     display: flex;
     background: #000;
