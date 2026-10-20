@@ -4,7 +4,8 @@ Pure TypeScript: the snorkel scoring model and everything it needs.
 
 **Lives here**
 
-- `models/`: `Spot`, `SpotHourSample`, `Conditions`, `ForecastBundle`, `GridSpec` and other types
+- `models/`: `Spot`, `SpotHourSample`, `Conditions`, `ForecastBundle` (and its spot half,
+  `SpotForecastBundle`), `GridSpec` and other types
 - `scoring/`: exposure, period factor, penalty tables, `assessConditions`, ratings, hazards, best window,
   score matrix and ranking
 - `forecast/`: reading one spot's hour out of a packed `SpotForecast`
