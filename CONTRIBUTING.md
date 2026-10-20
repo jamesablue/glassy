@@ -32,6 +32,7 @@ you stage.
 | `npm run e2e:visual:update` | Takes new screenshot baselines the same way                     |
 | `npm run fixtures:record`   | Records the forecast fixtures again from the live APIs          |
 | `npm run fixtures:expected` | Scores the recorded fixtures with the original prototype's code |
+| `npm run docs:screenshots`  | Builds the app and captures the README images in `docs/images/` |
 
 The CDK app in `infra/` is a separate package with its own `npm ci`, `npm test` and `npm run synth`.
 
@@ -44,6 +45,10 @@ The CDK app in `infra/` is a separate package with its own `npm ci`, `npm test` 
   the scope where it helps.
 - Open a pull request against `main` using the template, and link the issue with `Closes #<n>`.
   Pull requests are squash-merged once CI is green.
+- `main` is protected. A pull request needs these checks to pass: `Quality`, `Unit tests`, `Build`,
+  `E2E`, `Infrastructure (CDK)`, `Lint workflows`, `Analyze (javascript-typescript)` and
+  `Dependency review`. It must also be up to date with `main`, and history stays linear, so rebase
+  on `main` (`git fetch origin && git rebase origin/main`) rather than merging it in.
 
 ## Tests
 
