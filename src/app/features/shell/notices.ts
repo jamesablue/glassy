@@ -1,9 +1,13 @@
 import type { AppNoticeKind } from '../../core/app-notices';
 import { timeLabel } from '../../domain/time';
-import type { ForecastStatus } from '../../state';
+import type { ForecastStatus, GridStatus } from '../../state';
 
 /** How long a notice without an action stays up, ms. */
 export const NOTICE_AUTO_HIDE_MS = 7000;
+
+/** What the notice says when the spot forecast loaded but the map grid did not. */
+export const MAP_OVERLAY_UNAVAILABLE =
+  'Map overlay unavailable right now. The spot forecast still works.';
 
 /** A message for the notification toast. */
 export interface Notice {
@@ -25,6 +29,8 @@ export interface ForecastState {
   readonly fetchedAt: number | undefined;
   /** Whether the browser reports a network connection. */
   readonly online: boolean;
+  /** Where the map grid of the forecast on show stands, or `undefined` when there is none. */
+  readonly gridStatus: GridStatus | undefined;
 }
 
 /** The full-screen message when the first forecast could not be loaded. */
@@ -36,8 +42,11 @@ export interface LoadErrorMessage {
 /**
  * What to tell the user about the forecast in a toast, or `null` when all is well:
  *
- * - `loading` with a forecast on show: it is being refreshed (the first load has its own overlay)
+ * - `loading` with a forecast on show: it is being refreshed (the first load has its own overlay),
+ *   whether it is the forecast from before a reload or an older cached one shown meanwhile
  * - `ready`, offline: the forecast on show is all there is until the connection comes back
+ * - `ready` without the map grid: the colours and particles could not be loaded, but the spot
+ *   forecast is fine; says so politely, then goes away
  * - `stale`: the refresh failed, so an older forecast is on show; says how old, then goes away
  * - `error`: the forecast could not be loaded or refreshed; says why (offline, rate limited, or
  *   anything else) and offers to retry. Without any forecast the shell shows
@@ -48,13 +57,15 @@ export function forecastNotice({
   rateLimited,
   fetchedAt,
   online,
+  gridStatus,
 }: ForecastState): Notice | null {
   const since = fetchedAt === undefined ? undefined : timeLabel(fetchedAt / 1000);
   switch (status) {
     case 'loading':
       return since === undefined ? null : quiet('Refreshing the forecast…', null);
     case 'ready':
-      return online ? null : quiet(offlineWith(since), NOTICE_AUTO_HIDE_MS);
+      if (!online) return quiet(offlineWith(since), NOTICE_AUTO_HIDE_MS);
+      return gridStatus === 'failed' ? quiet(MAP_OVERLAY_UNAVAILABLE, NOTICE_AUTO_HIDE_MS) : null;
     case 'stale':
       if (!online) return quiet(offlineWith(since), NOTICE_AUTO_HIDE_MS);
       return quiet(
@@ -71,6 +82,15 @@ export function forecastNotice({
         autoHideMs: null,
       };
   }
+}
+
+/**
+ * Whether to show the "Loading map layers…" chip: a fresh spot forecast is on show and its map grid
+ * is still on the way. While a load is in flight with nothing on show, the loading overlay covers
+ * it; while a reload is in flight, the "Refreshing" notice does.
+ */
+export function mapLayersPending({ status, gridStatus }: ForecastState): boolean {
+  return status === 'ready' && gridStatus === 'loading';
 }
 
 /**

@@ -6,9 +6,14 @@ import { FakeAnimationHost } from '../testing/fake-animation-host';
 import { installFakeCanvas } from '../testing/fake-canvas';
 import { recordedForecastBundle } from '../testing/forecast-bundle';
 import { FAKE_TILE_SOURCES, leafletMapOf, renderMap, resizeMap } from '../testing/map-harness';
-import { provideFakeBathymetry, provideTestForecast } from '../testing/state-providers';
+import {
+  provideFakeBathymetry,
+  provideTestForecast,
+  ScriptedForecastRepository,
+} from '../testing/state-providers';
 import { App } from './app';
 import { TERRAIN_TILE_SOURCES } from './core/terrain-tile-sources';
+import { ForecastRepository } from './data/forecast.repository';
 import { OAHU_SPOTS } from './domain/spots';
 import { ANIMATION_HOST } from './map';
 import { MapUiStore } from './state';
@@ -113,6 +118,32 @@ describe('App', () => {
     TestBed.inject(MapUiStore).toggleSpots();
     await fixture.whenStable();
     expect(pins(element)).toHaveLength(0);
+  });
+
+  it('pins the spots before the map grid lands, and draws the layer once it does', async () => {
+    const repository = new ScriptedForecastRepository();
+    TestBed.overrideProvider(ForecastRepository, { useValue: repository });
+    const fixture = TestBed.createComponent(App);
+    fixture.detectChanges();
+    TestBed.tick();
+    // The app is not stable until the first result arrives.
+    repository.serveSpots(recordedForecastBundle(), MORNING);
+    await renderMap(fixture);
+    resizeMap(fixture, 1280, 800);
+    await fixture.whenStable();
+    const element = fixture.nativeElement as HTMLElement;
+    const field = (): HTMLElement | null => element.querySelector('.field-canvas');
+
+    expect(pins(element)).toHaveLength(OAHU_SPOTS.length);
+    expect(field()?.style.display).toBe('none');
+    expect(animation.pendingFrames).toBe(0);
+    expect(element.querySelector('glassy-map-layers-chip')).not.toBeNull();
+
+    repository.succeed(recordedForecastBundle(), MORNING);
+    await fixture.whenStable();
+    expect(field()?.style.display).toBe('');
+    expect(animation.pendingFrames).toBe(1);
+    expect(element.querySelector('glassy-map-layers-chip')).toBeNull();
   });
 
   it('leaves no map, layer, listener or animation frame behind when destroyed', async () => {
