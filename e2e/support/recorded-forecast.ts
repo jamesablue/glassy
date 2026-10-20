@@ -7,6 +7,14 @@ const RAW_FIXTURES = join(__dirname, '../../src/testing/fixtures/raw');
 /** Open-Meteo's forecast and marine APIs. */
 export const OPEN_METEO = /^https:\/\/([a-z-]+\.)?open-meteo\.com\//;
 
+/** One of the four forecast requests, as the recording names them. */
+export type ForecastRequest = keyof typeof manifest.openMeteo.requests;
+
+/** The exact URL the app requests for one of the four forecast requests. */
+export function forecastUrl(request: ForecastRequest): string {
+  return manifest.openMeteo.requests[request].url;
+}
+
 /** Recorded response bodies by the exact URL the app requests (see `manifest.json`). */
 const RECORDED = new Map(
   Object.values(manifest.openMeteo.requests).map(({ url, file }) => [

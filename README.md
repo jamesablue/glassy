@@ -37,6 +37,9 @@ spots, scores them, and shows where and when the water should be calm.
   from NOAA.
 - **Shareable URLs:** `?spot=hanauma&layer=depth&t=2026-10-20T08` restores the spot, layer and hour.
 - **Units:** feet or meters; knots, mph, km/h or m/s; °F or °C. Remembered between visits.
+- **Usable when the forecast API is slow:** the ranking appears as soon as the spot forecast
+  arrives and the map layers follow; a returning visitor sees the cached forecast at once while it
+  refreshes; no request is waited on for more than 25 seconds.
 - **Responsive and accessible:** a bottom-sheet layout on phones, full keyboard use (including the
   map and the chart), screen reader announcements, reduced motion, and 0 axe violations.
 
@@ -117,7 +120,7 @@ component tree, startup sequence, state map and rendering pipeline.
 - **Scoring parity with the prototype.** A golden test scores a real recorded forecast and
   compares it with a verbatim copy of the original prototype's code: all 1,200 spot-hours (25 spots
   × 48 hours) match exactly, and so does the ranking at every hour.
-- **Tests.** 1,059 unit and component tests, 104 end-to-end tests on a desktop and a Pixel 7, and 5
+- **Tests.** 1,118 unit and component tests, 116 end-to-end tests on a desktop and a Pixel 7, and 5
   screenshot comparisons, all offline. Coverage per layer (statements / branches / functions /
   lines), each held to a floor in CI:
 
@@ -125,13 +128,13 @@ component tree, startup sequence, state map and rendering pipeline.
   | ----------- | ------------------------- | ----: |
   | `domain/`   | 100 / 98.5 / 100 / 100    |   95% |
   | `data/`     | 100 / 98.6 / 100 / 100    |   90% |
-  | `state/`    | 100 / 98.5 / 100 / 100    |   90% |
+  | `state/`    | 100 / 98.6 / 100 / 100    |   90% |
   | `shared/`   | 100 / 99.4 / 100 / 100    |   90% |
-  | `features/` | 98.2 / 98.3 / 96.4 / 99.8 |   85% |
+  | `features/` | 98.2 / 98.3 / 96.5 / 99.8 |   85% |
   | `map/`      | 99.5 / 98.3 / 98.6 / 99.8 |   80% |
   | `core/`     | 100 / 93.5 / 100 / 100    |     – |
 
-- **Accessibility.** 0 axe violations (WCAG 2.0 to 2.2, A and AA, plus best practices) in 9 states
+- **Accessibility.** 0 axe violations (WCAG 2.0 to 2.2, A and AA, plus best practices) in 10 states
   on a desktop and a phone. The one narrowed rule, target size, exempts only the map pins, whose
   action is also a full-size row in the ranking.
 - **Lighthouse** (13.5, production build served locally, median of 3 runs):
@@ -227,8 +230,9 @@ About panel carry the credits above.
 
 **Rate limits and caching.** Open-Meteo's free tier allows 600 calls a minute, 5,000 an hour and
 10,000 a day per IP, and a load is four requests. Glassy keeps the last forecast in IndexedDB: a
-reload within 45 minutes sends none, and if a refresh fails, a copy up to 12 hours old is shown
-with its age. A 429 gets its own "try again in a minute" message. NOAA depth lookups are
+reload within 45 minutes sends none, and a copy up to 12 hours old is shown at once while it
+refreshes, and kept, with its age, if the refresh fails. A 429 gets its own "try again in a minute"
+message, and a request that takes more than 25 seconds is abandoned rather than retried. NOAA depth lookups are
 remembered for the last 256 points, map tiles use the browser's HTTP cache, and a tile source that
 fails six times in a row is paused for 30 seconds.
 

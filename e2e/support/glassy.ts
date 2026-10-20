@@ -15,6 +15,16 @@ export function collectErrors(page: Page): string[] {
   return errors;
 }
 
+/**
+ * Errors the app itself reported, for tests that make requests fail on purpose. The browser also
+ * logs every request that failed ("Failed to load resource"), which is the point of those tests
+ * rather than a fault.
+ */
+export function appErrors(page: Page): () => string[] {
+  const errors = collectErrors(page);
+  return () => errors.filter((error) => !error.startsWith('Failed to load resource'));
+}
+
 /** The ranked list of spots in the side panel. */
 export function ranking(page: Page): Locator {
   return page.getByRole('list', { name: 'Spots from best to worst' });
@@ -93,9 +103,13 @@ export function spotPin(page: Page, name: string): Locator {
   return page.locator('glassy-map').getByRole('button', { name: new RegExp(`^${escape(name)}`) });
 }
 
-/** Waits until the forecast has loaded and every spot has its pin on the map. */
+/**
+ * Waits until the whole forecast has loaded: every spot has its pin on the map, and the map grid,
+ * which can arrive after the spots, is in (the "Loading map layers…" chip has gone).
+ */
 export async function waitForForecast(page: Page): Promise<void> {
   await expect(spotPins(page)).toHaveCount(SPOT_COUNT);
+  await expect(page.locator('glassy-map-layers-chip')).toHaveCount(0);
 }
 
 /** The heading of the open spot's details. */

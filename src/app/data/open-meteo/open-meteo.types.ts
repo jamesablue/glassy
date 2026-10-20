@@ -37,13 +37,21 @@ export interface OpenMeteoLocation<V extends string> {
 export type OpenMeteoResponse<V extends string> =
   OpenMeteoLocation<V> | readonly OpenMeteoLocation<V>[];
 
-/** The four responses behind one forecast load (see `forecastRequestUrls`). */
-export interface OpenMeteoForecastResponses {
-  readonly gridMarine: OpenMeteoResponse<GridMarineVariable>;
-  readonly gridWind: OpenMeteoResponse<GridWindVariable>;
+/** The two responses behind the spot forecast: what the ranking and the spot details need. */
+export interface OpenMeteoSpotResponses {
   readonly spotMarine: OpenMeteoResponse<SpotMarineVariable>;
   readonly spotWeather: OpenMeteoResponse<SpotWeatherVariable>;
 }
+
+/** The two responses behind the map grid: the colour layers and the particles. */
+export interface OpenMeteoGridResponses {
+  readonly gridMarine: OpenMeteoResponse<GridMarineVariable>;
+  readonly gridWind: OpenMeteoResponse<GridWindVariable>;
+}
+
+/** The four responses behind one forecast load (see `forecastRequestUrls`). */
+export interface OpenMeteoForecastResponses
+  extends OpenMeteoSpotResponses, OpenMeteoGridResponses {}
 
 /** The JSON body Open-Meteo sends with a 4xx or 5xx status. */
 export interface OpenMeteoErrorBody {

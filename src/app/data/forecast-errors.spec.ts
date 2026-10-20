@@ -1,6 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import {
   ForecastError,
+  ForecastTimeoutError,
   ForecastUnavailableError,
   RateLimitedError,
   toForecastError,
@@ -60,5 +61,18 @@ describe('toForecastError', () => {
   it('passes forecast errors through unchanged', () => {
     const error = new RateLimitedError('Slow down');
     expect(toForecastError(error)).toBe(error);
+    const timeout = new ForecastTimeoutError(25_000);
+    expect(toForecastError(timeout)).toBe(timeout);
+  });
+});
+
+describe('ForecastTimeoutError', () => {
+  it('is an unavailable forecast that says how long it waited', () => {
+    const error = new ForecastTimeoutError(25_000);
+
+    expect(error).toBeInstanceOf(ForecastUnavailableError);
+    expect(error.name).toBe('ForecastTimeoutError');
+    expect(error.timeoutMs).toBe(25_000);
+    expect(error.reason).toBe('The forecast service did not answer within 25 s');
   });
 });

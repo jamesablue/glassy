@@ -3,7 +3,16 @@ import { AppNotices } from '../../core/app-notices';
 import { ConnectivityStore, ForecastStore } from '../../state';
 import { LoadErrorComponent } from './load-error.component';
 import { LoadingOverlayComponent } from './loading-overlay.component';
-import { appNotice, forecastNotice, loadErrorMessage, sameNotice, type Notice } from './notices';
+import { MapLayersChipComponent } from './map-layers-chip.component';
+import {
+  appNotice,
+  forecastNotice,
+  loadErrorMessage,
+  mapLayersPending,
+  sameNotice,
+  type ForecastState,
+  type Notice,
+} from './notices';
 import { NotificationToastComponent } from './notification-toast.component';
 
 /** The notice on show, and where it came from, so hiding it hides the right one. */
@@ -15,19 +24,29 @@ interface ShownNotice extends Notice {
 /**
  * What the app has to say about itself, one thing at a time:
  *
- * - the loading overlay over the first load
+ * - the loading overlay over the first load, until the spot forecast arrives
+ * - the "Loading map layers…" chip while the map grid follows it; it never blocks anything, so it
+ *   can sit alongside a toast
  * - the load error screen when the first load fails with nothing cached (Retry, or Escape)
- * - otherwise a toast: about the forecast first (refreshing, stale, offline, failed), then the
- *   latest problem reported through `AppNotices` (map tiles, unexpected errors)
+ * - otherwise a toast: about the forecast first (refreshing, stale, offline, map overlay missing,
+ *   failed), then the latest problem reported through `AppNotices` (map tiles, unexpected errors)
  *
  * The rules for what each says live in `notices.ts`.
  */
 @Component({
   selector: 'glassy-status-messages',
-  imports: [LoadErrorComponent, LoadingOverlayComponent, NotificationToastComponent],
+  imports: [
+    LoadErrorComponent,
+    LoadingOverlayComponent,
+    MapLayersChipComponent,
+    NotificationToastComponent,
+  ],
   template: `
     @if (loading()) {
       <glassy-loading-overlay />
+    }
+    @if (mapLayersPending()) {
+      <glassy-map-layers-chip />
     }
     @if (loadError(); as error) {
       <glassy-load-error
@@ -71,16 +90,18 @@ export class StatusMessagesComponent {
     return loadErrorMessage(this.forecast.isRateLimited(), this.connectivity.online());
   });
 
-  private readonly forecastNotice = computed(
-    () =>
-      forecastNotice({
-        status: this.forecast.status(),
-        rateLimited: this.forecast.isRateLimited(),
-        fetchedAt: this.forecast.fetchedAt(),
-        online: this.connectivity.online(),
-      }),
-    { equal: sameNotice },
-  );
+  private readonly forecastState = computed<ForecastState>(() => ({
+    status: this.forecast.status(),
+    rateLimited: this.forecast.isRateLimited(),
+    fetchedAt: this.forecast.fetchedAt(),
+    online: this.connectivity.online(),
+    gridStatus: this.forecast.gridStatus(),
+  }));
+  /** The spot forecast is on show and the map's colours and particles are on their way. */
+  protected readonly mapLayersPending = computed(() => mapLayersPending(this.forecastState()));
+  private readonly forecastNotice = computed(() => forecastNotice(this.forecastState()), {
+    equal: sameNotice,
+  });
   /** Set when a forecast notice hides itself; a different notice shows again. */
   private readonly forecastNoticeDismissed = linkedSignal({
     source: this.forecastNotice,

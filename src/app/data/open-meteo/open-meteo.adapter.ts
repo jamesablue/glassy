@@ -6,12 +6,14 @@ import {
   type GridForecast,
   type GridSpec,
   type SpotForecast,
+  type SpotForecastBundle,
   type SpotVariable,
 } from '../../domain/models';
 import type {
   OpenMeteoForecastResponses,
   OpenMeteoLocation,
   OpenMeteoResponse,
+  OpenMeteoSpotResponses,
 } from './open-meteo.types';
 import {
   GRID_MARINE_VARS,
@@ -129,6 +131,56 @@ export function toForecastBundle(
     cellCount,
     'grid wind',
   );
+
+  return {
+    ...spotBundleOn(responses, hours, spotCount),
+    grid: toGridForecast(grid, gridMarine, gridWind),
+  };
+}
+
+/**
+ * The spot half of a forecast from the two spot responses alone, on the hours those two share: what
+ * the app shows while the grid requests are still out.
+ *
+ * @param spotCount the number of spots the spot requests were made for, in catalog order
+ * @throws Error when the responses do not line up with the catalog or each other
+ */
+export function toSpotForecastBundle(
+  responses: OpenMeteoSpotResponses,
+  spotCount: number,
+): SpotForecastBundle {
+  const hours = sharedHours([timeAxis(responses.spotMarine), timeAxis(responses.spotWeather)]);
+  return spotBundleOn(responses, hours, spotCount);
+}
+
+/**
+ * Completes a spot forecast with the map grid once the grid responses are in. Every dataset is cut
+ * to the hours all four share, exactly as {@link toForecastBundle} does.
+ *
+ * Usually those are the spot forecast's own hours: each grid request goes to the same service as
+ * one of the spot requests, for the same days. Then `spots` is kept as it is, so the times, scores
+ * and selected hour derived from it stay as they are when the grid arrives. Otherwise the whole
+ * forecast moves to the shorter shared axis, and the state layer keeps the selected hour by time.
+ *
+ * @param spots the spot forecast {@link toSpotForecastBundle} made from the same spot responses
+ * @throws Error when the responses do not line up with the grid, the catalog or each other
+ */
+export function withGrid(
+  spots: SpotForecastBundle,
+  responses: OpenMeteoForecastResponses,
+  grid: GridSpec,
+  spotCount: number,
+): ForecastBundle {
+  const bundle = toForecastBundle(responses, grid, spotCount);
+  return sameHours(bundle.times, spots.times) ? { ...spots, grid: bundle.grid } : bundle;
+}
+
+/** Packs the spot responses, cut to `hours`, into the spot half of a forecast. */
+function spotBundleOn(
+  responses: OpenMeteoSpotResponses,
+  hours: HourRange,
+  spotCount: number,
+): SpotForecastBundle {
   const spotMarine = expectLocations(
     packHourly(responses.spotMarine, SPOT_MARINE_VARS, hours),
     spotCount,
@@ -139,11 +191,9 @@ export function toForecastBundle(
     spotCount,
     'spot weather',
   );
-
   return {
-    times: gridMarine.times,
+    times: spotMarine.times,
     isDay: islandDaylight(spotWeather),
-    grid: toGridForecast(grid, gridMarine, gridWind),
     spots: toSpotForecast(spotMarine, spotWeather),
   };
 }
@@ -220,6 +270,10 @@ function islandDaylight(weather: PackedSeries<SpotWeatherVariable>): boolean[] {
   return weather.times.map(
     (_, hour) => valueAt(weather.values.is_day, hour * weather.locationCount) > 0.5,
   );
+}
+
+function sameHours(a: readonly number[], b: readonly number[]): boolean {
+  return a.length === b.length && a.every((time, index) => time === b[index]);
 }
 
 function timeAxis<V extends string>(response: OpenMeteoResponse<V>): readonly number[] {

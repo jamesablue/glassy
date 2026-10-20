@@ -1,5 +1,6 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { defer, of, throwError, type Observable } from 'rxjs';
+import { ForecastTimeoutError } from './forecast-errors';
 import { isTransient, retryTransient } from './retry-transient';
 
 const httpError = (status: number): HttpErrorResponse => new HttpErrorResponse({ status });
@@ -15,6 +16,10 @@ describe('isTransient', () => {
 
   it('does not retry errors that are not HTTP errors', () => {
     expect(isTransient(new Error('bad data'))).toBe(false);
+  });
+
+  it('does not retry a timeout', () => {
+    expect(isTransient(new ForecastTimeoutError(25_000))).toBe(false);
   });
 });
 
