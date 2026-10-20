@@ -26,7 +26,8 @@ AppShellComponent                  shell/        container · layout, landmarks,
 ├─ LegendComponent                 legend/       unit and colour cells for the active layer
 ├─ TimelineComponent               timeline/     container · ARIA slider, play, Now
 ├─ StatusMessagesComponent         shell/        container · one status message at a time
-│  ├─ LoadingOverlayComponent      shell/        first load only
+│  ├─ LoadingOverlayComponent      shell/        first load only, until the spot forecast arrives
+│  ├─ MapLayersChipComponent       shell/        "Loading map layers…" while the map grid follows
 │  ├─ LoadErrorComponent           shell/        modal dialog: first load failed, nothing cached; Retry
 │  └─ NotificationToastComponent   shell/        refreshing, stale, offline, error with Retry, map tiles
 └─ HourAnnouncerComponent          shell/        container · polite live region: the new hour and best spot
@@ -36,16 +37,16 @@ AppShellComponent                  shell/        container · layout, landmarks,
 `input()`s and reports through `output()`s. Rules that are worth testing on their own live in plain
 functions next to the components that use them:
 
-| File                             | What it decides                                                     |
-| -------------------------------- | ------------------------------------------------------------------- |
-| `shell/notices.ts`               | what the toast and the load error screen say, and when              |
-| `shell/announcement-throttle.ts` | how far apart live region announcements go out                      |
-| `shell/keyboard-shortcuts.ts`    | which app-wide shortcut a key press asks for, and when to ignore it |
-| `shell/narrow-viewport.ts`       | whether the app opened on a phone (panels start folded)             |
-| `spot-detail/condition-cells.ts` | the conditions grid's readings in the user's units                  |
-| `spot-detail/hazard-messages.ts` | what each hazard warning says                                       |
-| `spot-detail/score-trend.ts`     | the chart's bars, night bands, surf line and days; a daily summary  |
-| `timeline/timeline-geometry.ts`  | pointer position ↔ hour, and the slider's keys                      |
+| File                             | What it decides                                                                  |
+| -------------------------------- | -------------------------------------------------------------------------------- |
+| `shell/notices.ts`               | what the toast and the load error screen say, and when the map layers chip shows |
+| `shell/announcement-throttle.ts` | how far apart live region announcements go out                                   |
+| `shell/keyboard-shortcuts.ts`    | which app-wide shortcut a key press asks for, and when to ignore it              |
+| `shell/narrow-viewport.ts`       | whether the app opened on a phone (panels start folded)                          |
+| `spot-detail/condition-cells.ts` | the conditions grid's readings in the user's units                               |
+| `spot-detail/hazard-messages.ts` | what each hazard warning says                                                    |
+| `spot-detail/score-trend.ts`     | the chart's bars, night bands, surf line and days; a daily summary               |
+| `timeline/timeline-geometry.ts`  | pointer position ↔ hour, and the slider's keys                                   |
 
 ## How the pieces talk
 
@@ -73,7 +74,10 @@ functions next to the components that use them:
 | State                                     | What shows                                                                                                                          |
 | ----------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
 | First load                                | the loading overlay (a polite status); the ranking says spots appear once the forecast loads                                        |
+| First load, spot forecast in, grid not    | the ranking, details, pins and timeline work; the map draws no colours or particles; a "Loading map layers…" chip (a polite status) |
+| First load, the grid failed               | the same, without the chip; a polite toast: "Map overlay unavailable right now. The spot forecast still works."                     |
 | First load failed, nothing cached         | the load error screen: a modal dialog with Retry; the rate limit and offline have their own words; Escape leaves a toast with Retry |
+| Older forecast cached, being refreshed    | the cached forecast at once, with "Data from …" under the ranking's header and a "Refreshing the forecast…" status                  |
 | Refresh under way                         | the forecast stays on show; a "Refreshing the forecast…" status                                                                     |
 | Refresh failed, older forecast cached     | a polite toast with its age, and "Data from …" under the ranking's header while it is on show                                       |
 | Refresh failed, nothing older             | the forecast stays on show; an alert toast with Retry                                                                               |

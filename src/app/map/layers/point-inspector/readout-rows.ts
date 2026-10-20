@@ -47,6 +47,8 @@ export function readoutRows(reading: PointReading, units: UnitSettings): Readout
       return [...forecastRows(forecast.sample, units), depth];
     case 'outside':
       return [{ label: 'Forecast', value: 'outside area' }, depth];
+    case 'unavailable':
+      return [{ label: 'Forecast', value: 'unavailable' }, depth];
     case 'loading':
       return [{ label: 'Forecast', value: 'loading…' }, depth];
   }

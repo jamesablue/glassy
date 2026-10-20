@@ -62,6 +62,10 @@ hovered row comes back the same way as `[hoveredId]`, which shows the pin's full
   layer shows blank tiles without asking, so a dead server neither fills the console with failed requests nor
   gets hit on every pan, and `AppNotices` (in `core/`) gets one `map-tiles-unavailable` notice however many
   sources fail. The forecast colours, particles and pins carry on; the next tiles after the pause try again.
+- **The forecast grid is late or missing.** A first visit gets the spot forecast before the map grid,
+  so for a while (or for good, if the grid fails) the field and particle layers get no data: they draw
+  nothing and report nothing, the pins carry on, and the point readout says the forecast is "loading…"
+  or "unavailable". The shell shows the "Loading map layers…" chip meanwhile.
 - **A depth lookup fails.** The readout shows "—" with the reason as a tooltip (and after the dash for screen
   readers): no data at that point, or a failed lookup that tapping again retries.
 

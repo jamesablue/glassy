@@ -2,18 +2,49 @@ import { ApplicationRef } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { Subject, type Observable } from 'rxjs';
 import { testForecastBundle } from '../../testing/forecast-bundle';
-import { ForecastUnavailableError, RateLimitedError } from '../data/forecast-errors';
+import { spotHalf } from '../../testing/state-providers';
+import {
+  ForecastError,
+  ForecastTimeoutError,
+  ForecastUnavailableError,
+  RateLimitedError,
+} from '../data/forecast-errors';
 import {
   ForecastRepository,
   type ForecastResult,
+  type FreshForecastResult,
   type LoadOptions,
+  type SpotForecastResult,
+  type StaleForecastResult,
 } from '../data/forecast.repository';
+import type { ForecastBundle } from '../domain/models';
 import { ForecastStore } from './forecast.store';
 
 describe('ForecastStore', () => {
   const FETCHED_AT = Date.UTC(2026, 9, 18, 20);
   const bundle = testForecastBundle();
-  const network: ForecastResult = { bundle, fetchedAt: FETCHED_AT, source: 'network' };
+  const network: FreshForecastResult = {
+    bundle,
+    fetchedAt: FETCHED_AT,
+    source: 'network',
+    gridStatus: 'ready',
+  };
+  /** An older cached forecast whose refresh failed with `error`. */
+  const stale = (error: ForecastError): StaleForecastResult => ({
+    ...network,
+    source: 'stale-cache',
+    refreshing: false,
+    error,
+  });
+  /** An older cached forecast, on show while a refresh runs. */
+  const refreshing: StaleForecastResult = { ...network, source: 'stale-cache', refreshing: true };
+  /** The spot half of `forecast` with its grid still on the way. */
+  const spotsOf = (forecast: ForecastBundle, fetchedAt = FETCHED_AT): SpotForecastResult => ({
+    bundle: spotHalf(forecast),
+    fetchedAt,
+    source: 'network',
+    gridStatus: 'loading',
+  });
 
   const repository = { load: vi.fn<(options?: LoadOptions) => Observable<ForecastResult>>() };
   /** Each load gets its own subject, so a test answers loads one at a time. */
@@ -34,16 +65,27 @@ describe('ForecastStore', () => {
     TestBed.tick();
   });
 
-  /** Answers the latest load and waits for the store to take it in. */
-  async function answer(outcome: ForecastResult | Error): Promise<void> {
+  function latestLoad(): Subject<ForecastResult> {
     const load = loads.at(-1);
     if (!load) throw new Error('No load has started');
+    return load;
+  }
+
+  /** Answers the latest load and waits for the store to take it in. */
+  async function answer(outcome: ForecastResult | Error): Promise<void> {
+    const load = latestLoad();
     if (outcome instanceof Error) {
       load.error(outcome);
     } else {
       load.next(outcome);
       load.complete();
     }
+    await TestBed.inject(ApplicationRef).whenStable();
+  }
+
+  /** Emits a result on the latest load, which stays open for more. */
+  async function emit(result: ForecastResult): Promise<void> {
+    latestLoad().next(result);
     await TestBed.inject(ApplicationRef).whenStable();
   }
 
@@ -73,7 +115,7 @@ describe('ForecastStore', () => {
 
   it('shows a stale forecast and keeps the reason the refresh failed', async () => {
     const error = new ForecastUnavailableError('The forecast service could not be reached');
-    await answer({ ...network, source: 'stale-cache', error });
+    await answer(stale(error));
 
     expect(store.status()).toBe('stale');
     expect(store.bundle()).toBe(bundle);
@@ -84,7 +126,7 @@ describe('ForecastStore', () => {
 
   it('flags a stale forecast caused by the rate limit', async () => {
     const error = new RateLimitedError('Daily API request limit exceeded');
-    await answer({ ...network, source: 'stale-cache', error });
+    await answer(stale(error));
 
     expect(store.status()).toBe('stale');
     expect(store.isRateLimited()).toBe(true);
@@ -115,6 +157,94 @@ describe('ForecastStore', () => {
     expect(store.error()?.reason).toBe('bundle.times is undefined');
   });
 
+  it('has the map grid of a complete forecast', async () => {
+    await answer(network);
+
+    expect(store.grid()).toBe(bundle.grid);
+    expect(store.gridStatus()).toBe('ready');
+  });
+
+  describe('a forecast that arrives in two parts', () => {
+    it('is ready with the spot forecast while the grid is on its way', async () => {
+      await emit(spotsOf(bundle));
+
+      expect(store.status()).toBe('ready');
+      expect(store.bundle()?.times).toBe(bundle.times);
+      expect(store.grid()).toBeUndefined();
+      expect(store.gridStatus()).toBe('loading');
+      expect(store.source()).toBe('network');
+      expect(store.error()).toBeUndefined();
+    });
+
+    it('adds the grid without touching the spot forecast', async () => {
+      const spots = spotsOf(bundle);
+      await emit(spots);
+      const shown = store.bundle();
+      await answer({ ...network, bundle: { ...spots.bundle, grid: bundle.grid } });
+
+      expect(store.status()).toBe('ready');
+      expect(store.grid()).toBe(bundle.grid);
+      expect(store.gridStatus()).toBe('ready');
+      // The same spot forecast, so nothing derived from it is worked out again.
+      expect(store.bundle()).toBe(shown);
+    });
+
+    it('takes a forecast moved to other hours as a new spot forecast', async () => {
+      await emit(spotsOf(bundle));
+      const shorter = testForecastBundle(2);
+      await answer({ ...network, bundle: shorter });
+
+      expect(store.bundle()).toBe(shorter);
+      expect(store.grid()).toBe(shorter.grid);
+    });
+
+    it('keeps the spot forecast when the grid fails, without calling it an error', async () => {
+      await emit(spotsOf(bundle));
+      const gridError = new ForecastTimeoutError(25_000);
+      await answer({ ...spotsOf(bundle), gridStatus: 'failed', gridError });
+
+      expect(store.status()).toBe('ready');
+      expect(store.bundle()?.spots).toBe(bundle.spots);
+      expect(store.grid()).toBeUndefined();
+      expect(store.gridStatus()).toBe('failed');
+      expect(store.error()).toBeUndefined();
+    });
+  });
+
+  describe('a stale forecast while it refreshes', () => {
+    it('is on show at once, with the load still under way', async () => {
+      await emit(refreshing);
+
+      expect(store.status()).toBe('loading');
+      expect(store.bundle()).toBe(bundle);
+      expect(store.grid()).toBe(bundle.grid);
+      expect(store.source()).toBe('stale-cache');
+      expect(store.fetchedAt()).toBe(FETCHED_AT);
+      expect(store.error()).toBeUndefined();
+    });
+
+    it('gives way to the fresh forecast', async () => {
+      await emit(refreshing);
+      const fresh = testForecastBundle(4);
+      await answer({ ...network, bundle: fresh, fetchedAt: FETCHED_AT + 3_600_000 });
+
+      expect(store.status()).toBe('ready');
+      expect(store.bundle()).toBe(fresh);
+      expect(store.source()).toBe('network');
+      expect(store.fetchedAt()).toBe(FETCHED_AT + 3_600_000);
+    });
+
+    it('stays when the refresh fails, with the reason', async () => {
+      await emit(refreshing);
+      const error = new ForecastTimeoutError(25_000);
+      await answer(stale(error));
+
+      expect(store.status()).toBe('stale');
+      expect(store.bundle()).toBe(bundle);
+      expect(store.error()).toBe(error);
+    });
+  });
+
   describe('reload', () => {
     it('goes to the network, skipping the cache', async () => {
       await answer(network);
@@ -136,11 +266,11 @@ describe('ForecastStore', () => {
     });
 
     it('replaces the forecast when the new one arrives', async () => {
-      await answer({ ...network, source: 'stale-cache', error: new RateLimitedError('Slow down') });
+      await answer(stale(new RateLimitedError('Slow down')));
       const fresh = testForecastBundle(4);
       store.reload();
       TestBed.tick();
-      await answer({ bundle: fresh, fetchedAt: FETCHED_AT + 60_000, source: 'network' });
+      await answer({ ...network, bundle: fresh, fetchedAt: FETCHED_AT + 60_000 });
 
       expect(store.status()).toBe('ready');
       expect(store.bundle()).toBe(fresh);
@@ -212,11 +342,31 @@ describe('ForecastStore', () => {
 
     it('loads again while a stale forecast is on show', async () => {
       const error = new ForecastUnavailableError('The forecast service could not be reached');
-      await answer({ ...network, source: 'stale-cache', error });
+      await answer(stale(error));
       connection(false);
       connection(true);
 
       expect(repository.load).toHaveBeenCalledTimes(2);
+    });
+
+    it('loads again when the map grid could not be loaded', async () => {
+      await answer({
+        ...spotsOf(bundle),
+        gridStatus: 'failed',
+        gridError: new ForecastUnavailableError('The forecast service could not be reached'),
+      });
+      connection(false);
+      connection(true);
+
+      expect(repository.load).toHaveBeenCalledTimes(2);
+    });
+
+    it('leaves a stale forecast that is refreshing alone', async () => {
+      await emit(refreshing);
+      connection(false);
+      connection(true);
+
+      expect(repository.load).toHaveBeenCalledTimes(1);
     });
 
     it('leaves a good forecast alone', async () => {

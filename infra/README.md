@@ -13,7 +13,7 @@ account.
   required, no website hosting. Kept when the stack is deleted, unless configured otherwise.
 - **CloudFront distribution**: reads the bucket through Origin Access Control. HTTPS only (HTTP
   redirects), HTTP/2 and HTTP/3, `PriceClass_100`. 403 and 404 return `/index.html` with a 200 so
-  deep links reach the Angular router.
+  deep links load the app, which reads its state from the query string.
 - **Response headers policy**: HSTS (2 years, preload), `X-Content-Type-Options`,
   `X-Frame-Options: DENY`, `Referrer-Policy`, `Permissions-Policy` and a Content-Security-Policy
   that allows only the app's own origin plus Open-Meteo, NOAA and Esri. The host list lives in

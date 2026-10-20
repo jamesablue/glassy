@@ -55,8 +55,9 @@ workspace was generated with `--ssr false`.
   visitors.
 - Every visitor downloads the raw forecast: in the recording, about 730 kB of JSON for 48 hours,
   before compression. A five-day forecast is proportionally more.
-- First load depends on four third-party requests succeeding. Retries (after 1 s and 2 s) and the
-  stale fallback soften this but cannot remove it.
+- First load depends on four third-party requests succeeding. Retries (after 1 s and 2 s), a 25 s
+  timeout per request, showing the spot forecast before the slower map grid, and showing a cached
+  forecast while it refreshes soften this but cannot remove it.
 
 ## Alternatives considered
 

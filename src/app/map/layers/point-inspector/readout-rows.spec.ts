@@ -82,6 +82,13 @@ describe('point readout', () => {
         value: 'loading…',
       });
     });
+
+    it('says when the map grid could not be loaded, keeping the depth', () => {
+      expect(readoutRows(reading({ forecast: { status: 'unavailable' } }), FEET)).toEqual([
+        { label: 'Forecast', value: 'unavailable' },
+        { label: 'Depth', value: '28 ft' },
+      ]);
+    });
   });
 
   describe('elevationText', () => {

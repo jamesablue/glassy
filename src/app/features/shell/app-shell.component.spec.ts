@@ -15,7 +15,7 @@ import { AppNotices } from '../../core/app-notices';
 import { ForecastStore, MapUiStore, SettingsStore, TimelineStore } from '../../state';
 import { UNITS_POPOVER_ID } from '../settings/units-popover.component';
 import { AppShellComponent } from './app-shell.component';
-import { NOTICE_AUTO_HIDE_MS } from './notices';
+import { MAP_OVERLAY_UNAVAILABLE, NOTICE_AUTO_HIDE_MS } from './notices';
 import { NotificationToastComponent } from './notification-toast.component';
 
 describe('AppShellComponent', () => {
@@ -105,6 +105,53 @@ describe('AppShellComponent', () => {
       repository.succeed(bundle, RECORDED_MORNING);
       await stable();
       expect(toast()).toBeNull();
+    });
+
+    const chip = (): HTMLElement | null => element.querySelector('glassy-map-layers-chip');
+
+    it('shows the spot forecast first, with a chip until the map layers land', async () => {
+      repository.serveSpots(bundle, RECORDED_MORNING);
+      await stable();
+      expect(element.querySelector('glassy-loading-overlay')).toBeNull();
+      expect(element.querySelectorAll('glassy-spot-ranking-row')).toHaveLength(
+        bundle.spots.spotCount,
+      );
+      expect(chip()?.getAttribute('role')).toBe('status');
+      expect(text('glassy-map-layers-chip')).toBe('Loading map layers…');
+      expect(toast()).toBeNull();
+
+      repository.succeed(bundle, RECORDED_MORNING);
+      await stable();
+      expect(chip()).toBeNull();
+      expect(toast()).toBeNull();
+    });
+
+    it('keeps the spot forecast and says so politely when the map layers fail', async () => {
+      repository.serveSpots(bundle, RECORDED_MORNING);
+      await stable();
+      repository.failGrid(bundle, RECORDED_MORNING);
+      await stable();
+
+      expect(chip()).toBeNull();
+      expect(toast()?.getAttribute('role')).toBe('status');
+      expect(text('glassy-notification-toast')).toBe(MAP_OVERLAY_UNAVAILABLE);
+      expect(element.querySelectorAll('glassy-spot-ranking-row')).toHaveLength(
+        bundle.spots.spotCount,
+      );
+    });
+
+    it('shows an older cached forecast at once while it refreshes', async () => {
+      repository.serveStaleWhileRefreshing(bundle, Date.UTC(2026, 9, 18, 17));
+      await stable();
+      expect(element.querySelector('glassy-loading-overlay')).toBeNull();
+      expect(chip()).toBeNull();
+      expect(text('glassy-notification-toast')).toBe('Refreshing the forecast…');
+      expect(text('.data-age')).toBe('Data from Sun 7 AM');
+
+      repository.succeed(bundle, RECORDED_MORNING);
+      await stable();
+      expect(toast()).toBeNull();
+      expect(element.querySelector('.data-age')).toBeNull();
     });
   });
 

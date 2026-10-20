@@ -1,5 +1,5 @@
 import {
-  collectErrors,
+  appErrors,
   pointReadout,
   ranking,
   rankingHeader,
@@ -11,16 +11,7 @@ import {
 } from './support/glassy';
 import { ESRI_TILES, NOAA_IDENTIFY, NOAA_TILES } from './support/map-sources';
 import { failForecastRequests, showStaleForecast } from './support/states';
-import { expect, test, type Page } from './support/test';
-
-/**
- * Errors the app itself reported. The browser also logs every request that failed ("Failed to
- * load resource"), which is the point of these tests rather than a fault.
- */
-function appErrors(page: Page): () => string[] {
-  const errors = collectErrors(page);
-  return () => errors.filter((error) => !error.startsWith('Failed to load resource'));
-}
+import { expect, test } from './support/test';
 
 test.describe('when the forecast cannot be loaded', () => {
   test('says so full screen, and Retry loads it once the service is back', async ({ page }) => {
