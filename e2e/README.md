@@ -14,34 +14,35 @@ npm run e2e:visual                         # the screenshot comparisons, in Dock
 
 ## Specs
 
-| Spec                     | Covers                                                                    |
-| ------------------------ | ------------------------------------------------------------------------- |
-| `app-shell.spec.ts`      | Brand and tagline, unknown paths sent back to the map                     |
-| `timeline.spec.ts`       | Opening hour and ranking, scrubbing, keyboard steps, play and Now         |
-| `spot-detail.spec.ts`    | Opening a spot from the ranking, conditions, chart, Back and Escape       |
-| `map.spec.ts`            | Pins, selecting from a pin or the keyboard, point readout, NOAA tiles     |
-| `controls.spec.ts`       | Layers and legend, Spots toggle, Units and About popovers, a full visit   |
-| `shared-link.spec.ts`    | Restoring spot, layer and hour from the URL, and the URL following along  |
-| `states.spec.ts`         | Load errors and Retry, rate limit, stale cache, offline, tile failures    |
-| `mobile.spec.ts`         | The phone layout (mobile project only)                                    |
-| `keyboard.spec.ts`       | Focus order, keyboard use of rows, chart, popovers and map (desktop only) |
-| `reduced-motion.spec.ts` | Particles, map flights and transitions with and without reduced motion    |
-| `a11y.spec.ts`           | axe (WCAG 2.2 AA) on every main view and state                            |
-| `visual.spec.ts`         | Screenshot comparisons (the `visual` project, see below)                  |
+| Spec                     | Covers                                                                                                        |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------- |
+| `app-shell.spec.ts`      | Brand and tagline, unknown paths sent back to the map                                                         |
+| `timeline.spec.ts`       | Opening hour and ranking, scrubbing, keyboard steps, play and Now                                             |
+| `spot-detail.spec.ts`    | Opening a spot from the ranking, conditions, chart, Back and Escape                                           |
+| `map.spec.ts`            | Pins, selecting from a pin or the keyboard, point readout, NOAA tiles                                         |
+| `controls.spec.ts`       | Layers and legend, Spots toggle, Units and About popovers, a full visit                                       |
+| `shared-link.spec.ts`    | Restoring spot, layer and hour from the URL, and the URL following along                                      |
+| `states.spec.ts`         | Load errors and Retry, rate limit, stale cache, offline, tile failures                                        |
+| `slow-forecast.spec.ts`  | A late or failing map grid, a request that hangs past its timeout, a stale cache refreshing in the background |
+| `mobile.spec.ts`         | The phone layout (mobile project only)                                                                        |
+| `keyboard.spec.ts`       | Focus order, keyboard use of rows, chart, popovers and map (desktop only)                                     |
+| `reduced-motion.spec.ts` | Particles, map flights and transitions with and without reduced motion                                        |
+| `a11y.spec.ts`           | axe (WCAG 2.2 AA) on every main view and state                                                                |
+| `visual.spec.ts`         | Screenshot comparisons (the `visual` project, see below)                                                      |
 
 ## Support utilities (`support/`)
 
-| File                   | What it gives a spec                                                                                                                                                                    |
-| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `test.ts`              | `test` and `expect` for every spec. An automatic fixture runs `serveOffline` before each test. ESLint rejects importing them from `@playwright/test` in a spec, so no spec can skip it. |
-| `offline.ts`           | `serveOffline`: blocks every host but `localhost`, then adds the routes below and pins the clock.                                                                                       |
-| `recorded-forecast.ts` | Answers Open-Meteo requests with the recorded responses, matched by exact URL; any other Open-Meteo URL gets a 404.                                                                     |
-| `map-sources.ts`       | Blank 1 × 1 PNGs for Esri and NOAA tiles; recorded NOAA depth lookups, with the Hanauma Bay answer for any point not recorded.                                                          |
-| `clock.ts`             | `startAtRecordedMorning`: the browser clock starts at 8:30 AM on the recording's first day (hour 8), then runs normally.                                                                |
-| `states.ts`            | `failForecastRequests` (500 or 429 until recovered) and `showStaleForecast` (a cached forecast two hours old with the refresh failing).                                                 |
-| `glassy.ts`            | Locators and steps in the app's own terms: `ranking`, `rankingRow`, `spotPin`, `menuButton`, `timeline`, `waitForForecast`, `tapOpenSea`, `expectedRanking` and more.                   |
-| `axe.ts`               | `expectNoAxeViolations`: WCAG 2.0 to 2.2 A and AA plus best practices, with the one documented exception for overlapping map pins.                                                      |
-| `serve-build.mts`      | The static server for `dist/` that replaces `ng serve` when `CI` (or `E2E_VISUAL`) is set. It falls back to `index.html` like the hosts do.                                             |
+| File                   | What it gives a spec                                                                                                                                                                                                                                                  |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `test.ts`              | `test` and `expect` for every spec. An automatic fixture runs `serveOffline` before each test. ESLint rejects importing them from `@playwright/test` in a spec, so no spec can skip it.                                                                               |
+| `offline.ts`           | `serveOffline`: blocks every host but `localhost`, then adds the routes below and pins the clock.                                                                                                                                                                     |
+| `recorded-forecast.ts` | Answers Open-Meteo requests with the recorded responses, matched by exact URL; any other Open-Meteo URL gets a 404.                                                                                                                                                   |
+| `map-sources.ts`       | Blank 1 × 1 PNGs for Esri and NOAA tiles; recorded NOAA depth lookups, with the Hanauma Bay answer for any point not recorded.                                                                                                                                        |
+| `clock.ts`             | `startAtRecordedMorning`: the browser clock starts at 8:30 AM on the recording's first day (hour 8), then runs normally.                                                                                                                                              |
+| `states.ts`            | `failForecastRequests` (500 or 429 until recovered), `holdForecastRequest` (one request held until released: a slow or hung service), `cacheForecastAndComeBackLater` (a cached forecast two hours old) and `showStaleForecast` (the same, with the refresh failing). |
+| `glassy.ts`            | Locators and steps in the app's own terms: `ranking`, `rankingRow`, `spotPin`, `menuButton`, `timeline`, `waitForForecast` (pins and map grid), `tapOpenSea`, `expectedRanking`, `appErrors` and more.                                                                |
+| `axe.ts`               | `expectNoAxeViolations`: WCAG 2.0 to 2.2 A and AA plus best practices, with the one documented exception for overlapping map pins.                                                                                                                                    |
+| `serve-build.mts`      | The static server for `dist/` that replaces `ng serve` when `CI` (or `E2E_VISUAL`) is set. It falls back to `index.html` like the hosts do.                                                                                                                           |
 
 Prefer the helpers in `glassy.ts` to raw selectors, and add one there when a locator or step is
 needed in more than one spec. Find things by role and accessible name, as a screen reader would.
@@ -64,6 +65,11 @@ needed in more than one spec. Find things by role and accessible name, as a scre
 
 A test can add its own route afterwards to change one answer; being newer, it is asked first. See
 `failForecastRequests`, or `states.spec.ts` for failing tiles and depth lookups.
+
+**Slow requests.** `holdForecastRequest` keeps one forecast request pending until the test releases
+it. Rather than sleep, a test moves the page's clock on with `page.clock.fastForward(ms)`: the app's
+retry waits and its 25 s request timeout run on that clock, so `slow-forecast.spec.ts` can show a
+grid answering after 20 s, or a request hanging past its timeout, in a few seconds of real time.
 
 ## Adding or updating a fixture
 
