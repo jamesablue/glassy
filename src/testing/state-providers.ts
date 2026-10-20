@@ -8,7 +8,7 @@ import {
   type LoadOptions,
 } from '../app/data/forecast.repository';
 import { BathymetryClient } from '../app/data/noaa/bathymetry.client';
-import type { ForecastBundle } from '../app/domain/models';
+import type { ForecastBundle, SpotForecastBundle } from '../app/domain/models';
 
 /** A clock that stays where a test puts it. */
 export class FakeClock implements Clock {
@@ -24,7 +24,7 @@ export class FakeClock implements Clock {
  * with `bundle` straight from the network, and the clock stands still at `now` (Unix ms).
  */
 export function provideTestForecast(bundle: ForecastBundle, now: number): Provider[] {
-  const result: ForecastResult = { bundle, fetchedAt: now, source: 'network' };
+  const result: ForecastResult = { bundle, fetchedAt: now, source: 'network', gridStatus: 'ready' };
   return [
     { provide: ForecastRepository, useValue: { load: () => of(result) } },
     { provide: CLOCK, useValue: new FakeClock(now) },
@@ -41,10 +41,15 @@ export function provideFakeBathymetry(
   return { provide: BathymetryClient, useValue: { elevationAt } };
 }
 
+/** The spot half of a forecast, without its grid, as a progressive load first delivers it. */
+export function spotHalf({ times, isDay, spots }: ForecastBundle): SpotForecastBundle {
+  return { times, isDay, spots };
+}
+
 /**
  * A `ForecastRepository` whose loads wait for the test to answer them, so a test can walk the app
- * through loading, a stale forecast and failures. Layers that may not import `data/` (the features)
- * reach the repository and its errors through here.
+ * through loading, a stale forecast, a forecast that arrives in parts, and failures. Layers that may
+ * not import `data/` (the features) reach the repository and its errors through here.
  */
 export class ScriptedForecastRepository {
   /** The options of every load asked for, oldest first. */
@@ -61,7 +66,7 @@ export class ScriptedForecastRepository {
   /** Answers the latest load with a forecast fresh from the network. */
   succeed(bundle: ForecastBundle, fetchedAt: number): void {
     this.settle((load) => {
-      load.next({ bundle, fetchedAt, source: 'network' });
+      load.next({ bundle, fetchedAt, source: 'network', gridStatus: 'ready' });
       load.complete();
     });
   }
@@ -70,7 +75,56 @@ export class ScriptedForecastRepository {
   serveStale(bundle: ForecastBundle, fetchedAt: number): void {
     const error = new ForecastUnavailableError('The forecast service could not be reached');
     this.settle((load) => {
-      load.next({ bundle, fetchedAt, source: 'stale-cache', error });
+      load.next({
+        bundle,
+        fetchedAt,
+        source: 'stale-cache',
+        refreshing: false,
+        error,
+        gridStatus: 'ready',
+      });
+      load.complete();
+    });
+  }
+
+  /**
+   * Shows an older cached forecast on the latest load while it refreshes in the background. The
+   * load stays open: answer it again with {@link succeed} or {@link serveStale}.
+   */
+  serveStaleWhileRefreshing(bundle: ForecastBundle, fetchedAt: number): void {
+    this.latest().next({
+      bundle,
+      fetchedAt,
+      source: 'stale-cache',
+      refreshing: true,
+      gridStatus: 'ready',
+    });
+  }
+
+  /**
+   * Answers the latest load with the spot half of `bundle`, its grid still on the way. The load
+   * stays open: answer it again with {@link succeed} or {@link failGrid}.
+   */
+  serveSpots(bundle: ForecastBundle, fetchedAt: number): void {
+    this.latest().next({
+      bundle: spotHalf(bundle),
+      fetchedAt,
+      source: 'network',
+      gridStatus: 'loading',
+    });
+  }
+
+  /** Finishes the latest load with the spot half of `bundle`: its grid could not be loaded. */
+  failGrid(bundle: ForecastBundle, fetchedAt: number): void {
+    const gridError = new ForecastUnavailableError('The forecast service answered HTTP 503');
+    this.settle((load) => {
+      load.next({
+        bundle: spotHalf(bundle),
+        fetchedAt,
+        source: 'network',
+        gridStatus: 'failed',
+        gridError,
+      });
       load.complete();
     });
   }
@@ -84,9 +138,15 @@ export class ScriptedForecastRepository {
     this.settle((load) => load.error(error));
   }
 
-  private settle(answer: (load: Subject<ForecastResult>) => void): void {
-    const load = this.pending.pop();
+  private latest(): Subject<ForecastResult> {
+    const load = this.pending.at(-1);
     if (!load) throw new Error('No forecast load is waiting');
+    return load;
+  }
+
+  private settle(answer: (load: Subject<ForecastResult>) => void): void {
+    const load = this.latest();
+    this.pending.pop();
     answer(load);
   }
 }

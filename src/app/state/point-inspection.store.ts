@@ -24,12 +24,14 @@ export type ElevationReading =
 /**
  * The forecast at the inspected point for the selected hour:
  *
- * - `loading`: no forecast has loaded yet
+ * - `loading`: the map grid has not loaded yet
+ * - `unavailable`: the map grid could not be loaded (the spot forecast did)
  * - `outside`: the point is off the forecast grid
  * - `ready`: the gridded fields interpolated at the point
  */
 export type PointForecast =
   | { readonly status: 'loading' }
+  | { readonly status: 'unavailable' }
   | { readonly status: 'outside' }
   | { readonly status: 'ready'; readonly sample: PointSample };
 
@@ -84,9 +86,11 @@ export class PointInspectionStore {
   readonly forecast = computed<PointForecast | null>(() => {
     const point = this.mapUi.inspectedPoint();
     if (!point) return null;
-    const bundle = this.forecastStore.bundle();
-    if (!bundle) return { status: 'loading' };
-    const sample = samplePoint(bundle.grid, this.timeline.selectedHour(), point.lat, point.lon);
+    const grid = this.forecastStore.grid();
+    if (!grid) {
+      return { status: this.forecastStore.gridStatus() === 'failed' ? 'unavailable' : 'loading' };
+    }
+    const sample = samplePoint(grid, this.timeline.selectedHour(), point.lat, point.lon);
     return sample ? { status: 'ready', sample } : { status: 'outside' };
   });
 
