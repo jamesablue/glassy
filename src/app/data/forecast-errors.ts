@@ -26,12 +26,29 @@ export class RateLimitedError extends ForecastError {
   }
 }
 
-/** Any other failure: offline, server errors that outlasted the retries, or a malformed response. */
+/**
+ * Any other failure: offline, server errors that outlasted the retries, a request that timed out
+ * ({@link ForecastTimeoutError}), or a malformed response.
+ */
 export class ForecastUnavailableError extends ForecastError {
-  override readonly name = 'ForecastUnavailableError';
+  override readonly name: string = 'ForecastUnavailableError';
 
   constructor(reason: string, options?: ErrorOptions) {
     super(reason, options);
+  }
+}
+
+/**
+ * A forecast request that did not answer within its deadline (`forecastRequestTimeoutMs`). It is
+ * a {@link ForecastUnavailableError} like any other failure, kept apart so it can be told from an
+ * outage: the service may be up but slow, which is also why it is never retried.
+ */
+export class ForecastTimeoutError extends ForecastUnavailableError {
+  override readonly name = 'ForecastTimeoutError';
+
+  /** @param timeoutMs how long the request was given, ms */
+  constructor(readonly timeoutMs: number) {
+    super(`The forecast service did not answer within ${Math.round(timeoutMs / 1000)} s`);
   }
 }
 

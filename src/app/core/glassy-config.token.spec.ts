@@ -30,6 +30,10 @@ describe('GLASSY_CONFIG', () => {
     expect(DEFAULT_GLASSY_CONFIG.cacheLifetimeMs).toBe(45 * 60 * 1000);
     expect(DEFAULT_GLASSY_CONFIG.cacheMaxStaleMs).toBe(12 * 60 * 60 * 1000);
   });
+
+  it('stops waiting for a forecast request after 25 seconds', () => {
+    expect(DEFAULT_GLASSY_CONFIG.forecastRequestTimeoutMs).toBe(25_000);
+  });
 });
 
 describe('SPOT_CATALOG', () => {

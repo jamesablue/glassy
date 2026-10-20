@@ -11,7 +11,8 @@ export interface RetryPolicy {
 /**
  * Network failures (status 0) and 5xx responses: problems that often clear up within seconds.
  * A 4xx is the request's fault and stays wrong however often it is sent, and retrying a 429 only
- * eats further into the rate limit.
+ * eats further into the rate limit. A timeout is not an HTTP error, so it is never retried either
+ * (see `withDeadline`).
  */
 export function isTransient(error: unknown): boolean {
   return error instanceof HttpErrorResponse && (error.status === 0 || error.status >= 500);
