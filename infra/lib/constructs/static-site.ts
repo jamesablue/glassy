@@ -110,7 +110,7 @@ export class StaticSite extends Construct {
       },
       // SPA fallback. With OAC and no s3:ListBucket, S3 answers 403 (not 404)
       // for a missing key. Both are turned into index.html with a 200 so a deep
-      // link loads the app and the client-side router takes over. TTL 0 so a
+      // link loads the app, which restores its state from the query. TTL 0 so a
       // deploy shows up on deep links without waiting for the error cache.
       errorResponses: SPA_FALLBACK_STATUSES.map((httpStatus) => ({
         httpStatus,
