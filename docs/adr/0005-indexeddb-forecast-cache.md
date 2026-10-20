@@ -3,7 +3,9 @@
 - **Status:** Accepted
 - **Date:** 2026-10-18 (implemented in [#21](https://github.com/jamesablue/glassy/pull/21));
   amended 2026-10-19 with the catalog fingerprint ([#26](https://github.com/jamesablue/glassy/pull/26),
-  fixing [#23](https://github.com/jamesablue/glassy/issues/23))
+  fixing [#23](https://github.com/jamesablue/glassy/issues/23)); amended 2026-10-19 to show a stale
+  copy while it refreshes and to cache only complete forecasts
+  ([#32](https://github.com/jamesablue/glassy/issues/32))
 - **Deciders:** James Blue
 
 ## Context and problem
@@ -19,7 +21,7 @@ series), which JSON can only store by converting every number.
 ## Decision drivers
 
 - No requests at all when the cached forecast is recent.
-- Recent data on screen, clearly labeled, when a refresh fails.
+- Recent data on screen, clearly labeled, when a refresh fails, and while a slow one runs.
 - Typed arrays stored as they are, without encoding or rounding.
 - Storage failures (private browsing, a full quota, a blocked database) must never break the app.
 - A cached forecast must never be shown against spots it was not fetched for.
@@ -36,21 +38,37 @@ series), which JSON can only store by converting every number.
 Option 2. `ForecastCache` (`src/app/data/cache/forecast-cache.ts`) keeps one record under a fixed
 key: the bundle, `fetchedAt`, a schema version, the spot ids in catalog order and the grid.
 
-| Situation                                                           | What `ForecastRepository.load()` does                           |
-| ------------------------------------------------------------------- | --------------------------------------------------------------- |
-| Cached forecast younger than 45 minutes                             | uses it, with no requests                                       |
-| Otherwise                                                           | fetches; on success, saves in the background                    |
-| The fetch fails and the cache is under 12 hours                     | shows the cached forecast as stale, with the reason             |
-| The fetch fails and nothing usable is cached                        | a typed error: `RateLimitedError` or `ForecastUnavailableError` |
-| Old version, other catalog or grid, corrupt, or storage unavailable | treated as a miss                                               |
+| Situation                                                           | What `ForecastRepository.load()` does                                                                  |
+| ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| Cached forecast younger than 45 minutes                             | uses it, with no requests                                                                              |
+| Otherwise, a cached forecast under 12 hours                         | shows it at once while it refreshes in the background; swaps in the fresh forecast once it is complete |
+| … the refresh fails or times out, in any part                       | keeps the cached forecast, now labeled stale, with the reason                                          |
+| Nothing usable cached                                               | fetches, showing the spot forecast before the map grid; saves the forecast once it is complete         |
+| … the spot requests fail                                            | a typed error: `RateLimitedError` or `ForecastUnavailableError`                                        |
+| Old version, other catalog or grid, corrupt, or storage unavailable | treated as a miss                                                                                      |
 
-`load({ force: true })` (Retry, back online) skips the fresh cache but keeps the stale fallback.
+`load({ force: true })` (Retry, back online) skips the fresh cache; a stale copy still shows while
+it refreshes.
+
+**Stale-while-revalidate** (amended in #32). A slow upstream once kept the page on its loading
+screen for a minute although a usable forecast was cached. A cached forecast past its 45 minutes
+is now shown straight away, marked as refreshing, and the ranking says when it was fetched. It is
+replaced only by a complete fresh forecast, so the ranking and the map never mix two fetches; a
+refresh whose grid fails counts as failed.
+
+**Only complete forecasts are saved.** A first visit can show the spot forecast before the map grid
+arrives (see [architecture.md](../architecture.md#startup-sequence)), but only the complete
+forecast is written. Whatever the cache returns can then be drawn in full: a saved spot forecast
+would leave the map without its layers for the cache's whole lifetime, and as a stale copy it could
+not stand in for a complete one.
 
 ## Consequences
 
 **Good**
 
 - A reload within 45 minutes sends no forecast request.
+- A returning visitor within 12 hours never waits on the network: the cached forecast is on screen
+  at once, and the fresh one replaces it when it is ready.
 - A failed refresh shows "Couldn't refresh the forecast. Showing data from Sun 8 AM." and the
   ranking notes the data's age, instead of an empty map.
 - Structured clone keeps the typed arrays intact: no JSON round trip on the way in or out.
@@ -68,6 +86,10 @@ key: the bundle, `fetchedAt`, a schema version, the spot ids in catalog order an
 - The cache is per browser: a first visit always fetches, and visitors share nothing
   (see [#17](https://github.com/jamesablue/glassy/issues/17) for a shared proxy).
 - Stale data can be up to 12 hours old. The UI says how old, but the conditions may have changed.
+  It is now also what a returning visitor sees first, for as long as the refresh takes (at most
+  25 s, the request timeout).
+- When the grid keeps failing, nothing is cached, so each visit fetches the spot forecast again.
+  Those two requests are small and fast, so this costs little.
 - Only the forecast is cached. The app shell and map tiles rely on the browser's HTTP cache, so this
   is not an offline app; [#13](https://github.com/jamesablue/glassy/issues/13) tracks a PWA mode.
 

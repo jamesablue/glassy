@@ -36,9 +36,12 @@ way that suits them:
   the grid's border and every row of the penalty tables.
 - **`data/`**: the Open-Meteo and NOAA clients against Angular's HTTP testing backend, the adapter
   that packs responses into typed arrays, and the IndexedDB cache on `fake-indexeddb` (lifetime,
-  stale fallback, records from an older app, storage failures).
+  stale fallback, records from an older app, storage failures). Fake timers drive the repository
+  through retries, the request timeout and its worst case, a stale forecast refreshing in the
+  background, and a forecast that arrives in two parts.
 - **`state/`**: the signal stores with their real dependencies where possible: loading and retries,
-  playback, URL sync in both directions, saved settings.
+  a forecast whose map grid arrives late or not at all, playback, URL sync in both directions,
+  saved settings.
 - **`map/`**: the framework-free canvas renderers with stub canvases, and the Leaflet layer
   components in a host map. jsdom has no layout or real canvas, so what needs pixels is left to
   Playwright.
@@ -103,7 +106,8 @@ so the end-to-end clock and expected texts and the screenshot baselines need upd
 Playwright drives the app in Chromium as a desktop (`chromium` project) and as a Pixel 7 (`mobile`
 project): loading and ranking, the spot details, the timeline, layers and legend, popovers, shared
 links, the phone layout, keyboard use, reduced motion, and the error, stale, offline and tile
-failure states.
+failure states. `slow-forecast.spec.ts` holds requests back and moves the page's clock on, to show
+the ranking before a late map grid, a grid that fails, and a request that hangs past its timeout.
 
 Every spec takes `test` from `e2e/support/test.ts`, which serves the recorded Open-Meteo and NOAA
 responses, answers map tiles with a blank image, aborts any other outside request and pins the clock
@@ -114,7 +118,8 @@ support code, the mocking and how to add a fixture.
 ### Accessibility
 
 `e2e/a11y.spec.ts` runs axe on the ranking, the spot details, both popovers, the depth layer, the
-point readout, the load error screen, the error toast and the stale forecast notice. Any violation
+point readout, the load error screen, the error toast, the map layers chip and the stale forecast
+notice. Any violation
 of WCAG 2.0, 2.1 and 2.2 at levels A and AA, or of axe's best practices, fails the test. The one
 exception (target size for overlapping map pins) is documented in `e2e/support/axe.ts`.
 `keyboard.spec.ts` and `reduced-motion.spec.ts` cover what axe cannot see: focus order, focus

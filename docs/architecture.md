@@ -49,7 +49,8 @@ flowchart TB
   ready to deploy (see [deployment.md](deployment.md)).
 - **Open-Meteo** answers four requests per load: marine and wind on the 1/8° grid around Oahu (165
   cells, for the map layers), marine values 6 km offshore of each spot, and weather at each spot
-  (for the score). When a fresh forecast is cached, none are sent.
+  (for the score). When a fresh forecast is cached, none are sent; the spot requests are small and
+  fast, the grid requests large and sometimes slow, so the spots render first.
 - **NOAA NCEI's DEM mosaic** renders the land hillshade and the depth classes on request
   (`exportImage` with a raster function), and returns the elevation at a tapped point (`identify`).
 - **Esri** provides the dark gray canvas basemap under the forecast colors and its place names
@@ -132,8 +133,8 @@ flowchart LR
 - **`TERRAIN_TILE_SOURCES`**: the map needs NOAA tile URLs but may not import `data/`. The map
   depends on the interface; `data/noaa/` implements it with its `exportImage` URL builder and
   raster rules.
-- **`GLASSY_CONFIG`**: API base URLs, the grid, forecast days, time zone and cache lifetimes. It has
-  no default, so an app or test that forgets to provide it fails at injection time instead of
+- **`GLASSY_CONFIG`**: API base URLs, the grid, forecast days, time zone, cache lifetimes and the
+  forecast request timeout. It has no default, so an app or test that forgets to provide it fails at injection time instead of
   calling the live APIs.
 - **`SPOT_CATALOG`**: the 25 Oahu spots by default. Another island would provide its own catalog.
 - **`CLOCK`**: "now" comes from this token, never `Date.now()`, so tests and the end-to-end suite
@@ -166,7 +167,7 @@ flowchart LR
   shell --> popovers["UnitsPopover, AboutPopover"]
   shell --> legend["LegendComponent"]
   shell --> timelineui["TimelineComponent"]
-  shell --> status["StatusMessagesComponent<br/>loading, load error, toasts"]
+  shell --> status["StatusMessagesComponent<br/>loading, map layers chip,<br/>load error, toasts"]
   shell --> announcer["HourAnnouncerComponent"]
 ```
 
@@ -210,39 +211,73 @@ sequenceDiagram
     C-->>R: bundle
     R-->>FS: source "cache", no requests
   else no fresh copy
-    par four requests, each retried after 1 s and 2 s on network or 5xx errors
-      R->>OM: grid marine
-      R->>OM: grid wind
-      R->>OM: spot marine
-      R->>OM: spot weather
-    end
-    alt all four succeed
-      OM-->>R: JSON
-      R->>R: toForecastBundle(): align hours, pack Float32Arrays
-      R--)C: put() in the background
-      R-->>FS: source "network"
-    else any request fails
-      R->>C: getStale()
-      alt copy younger than 12 h
-        C-->>R: bundle
-        R-->>FS: source "stale-cache" with the error
-      else nothing usable
+    R->>C: getStale()
+    alt copy younger than 12 h: stale-while-revalidate
+      C-->>R: bundle
+      R-->>FS: source "stale-cache", refreshing: on show at once
+      par all four requests, each with a 25 s deadline that covers its retries
+        R->>OM: spot marine, spot weather, grid marine, grid wind
+      end
+      alt all four succeed
+        R->>R: toForecastBundle(): align hours, pack Float32Arrays
+        R--)C: put() in the background
+        R-->>FS: source "network", swapped in
+      else any request fails or times out
+        R-->>FS: source "stale-cache" with the error, kept on show
+      end
+    else nothing usable cached: spot forecast first
+      par spot requests
+        R->>OM: spot marine, spot weather
+      and grid requests (165 points, the slow ones)
+        R->>OM: grid marine, grid wind
+      end
+      alt spot requests succeed
+        R->>R: toSpotForecastBundle()
+        R-->>FS: source "network", gridStatus "loading"
+        alt grid requests succeed
+          R->>R: withGrid(): shared hours, spot half kept as it is
+          R--)C: put() in the background
+          R-->>FS: complete, gridStatus "ready"
+        else grid fails or times out
+          R-->>FS: spot forecast only, gridStatus "failed"
+        end
+      else spot requests fail or time out
         R-->>FS: RateLimitedError (429) or ForecastUnavailableError
       end
     end
   end
-  FS->>S: bundle()
+  FS->>S: bundle(): the spot forecast
   S->>S: nowHour from CLOCK, pending t applied,<br/>scoreMatrix built once
-  S->>M: rankedSpots, spotPins, field and vectors
-  M->>M: field paints, particles start, 25 pins mount, ranking renders
+  S->>M: rankedSpots, spotPins
+  M->>M: 25 pins mount, ranking and timeline render
+  FS->>M: grid(), when it lands
+  M->>M: field paints, particles start
 ```
 
-- **Status** comes out of `ForecastStore` as `loading`, `ready`, `stale` or `error`, and
-  `StatusMessagesComponent` turns it into the loading overlay, the load error dialog or a toast.
+- **Something on screen as early as possible.** A fresh cached forecast is used as it is. A stale
+  one (up to 12 hours old) shows at once while all four requests refresh it in the background, and
+  is replaced only by a complete forecast, so the ranking and the map always come from the same
+  fetch. With nothing cached, the spot forecast renders as soon as its two requests land, and the
+  map grid, whose 165-point wind request has taken Open-Meteo a minute, fills in after it.
+- **Timeouts.** Each request has one 25 s deadline (`forecastRequestTimeoutMs` in `GLASSY_CONFIG`)
+  that covers its retries (after 1 s and 2 s, on network errors and 5xx), so retries never stack on
+  top of it. The requests run in parallel, so no load waits on the network for longer than 25 s. A
+  timeout is a `ForecastTimeoutError` and is never retried: a slow upstream only gets slower when
+  asked twice.
+- **The grid's arrival moves nothing.** `withGrid` keeps the spot half of the forecast when the
+  grid shares its hours (the usual case), and `ForecastStore.bundle` only changes when the spot
+  data does, so the scores, ranking and selected hour stay put. If the complete forecast ends up on
+  fewer hours, `TimelineStore` keeps the selected hour by its time. Only complete forecasts are
+  cached.
+- **Status** comes out of `ForecastStore` as `loading` (also while a stale forecast is on show and
+  being refreshed), `ready`, `stale` or `error`, with `gridStatus` (`loading`, `ready`, `failed`)
+  for the map grid. `StatusMessagesComponent` turns them into the loading overlay, the "Loading map
+  layers…" chip, the load error dialog or a toast ("Map overlay unavailable" when the grid failed).
 - **The last forecast stays on screen** while a reload runs and after one fails. The store keeps the
   last result in its own signal, because a resource drops its value when a new request starts.
 - **Back online.** `ConnectivityStore` follows the browser's `online` and `offline` events; when the
-  connection returns after an error, or while stale data is showing, the store reloads by itself.
+  connection returns after an error, while stale data is showing, or without the map grid, the
+  store reloads by itself.
 - **The cache fingerprint.** Each cached record keeps the spot ids in order and the grid it was
   fetched for. A record for a different catalog or grid is a miss, fresh or stale, because its
   per-spot series would no longer line up ([ADR-0005](adr/0005-indexeddb-forecast-cache.md)).
@@ -319,16 +354,16 @@ flowchart LR
   bathymetry[("BathymetryClient")] --> inspection
 ```
 
-| Store                  | Owns                                                      | Derives                                                                      | Read by                                                 |
-| ---------------------- | --------------------------------------------------------- | ---------------------------------------------------------------------------- | ------------------------------------------------------- |
-| `ForecastStore`        | the load request, the last loaded result                  | `status`, `bundle`, `fetchedAt`, `source`, `error`, `isRateLimited`          | every other store, status messages                      |
-| `ConnectivityStore`    | whether the browser is online                             | `online`                                                                     | `ForecastStore`, offline notices                        |
-| `SettingsStore`        | units and map choices, saved to localStorage              | `units`, `mapPreferences`                                                    | `MapUiStore`, `ConditionsStore`, Units popover, pipes   |
-| `MapUiStore`           | selected and hovered spot, region filter, inspected point | `activeLayer`, `particlesOn`, `spotsOn`, `isDepth`, field and vector keys    | map layers, controls, panels, `UrlStateSync`            |
-| `TimelineStore`        | selected hour, playback                                   | `nowHour`, `selectedTime`, `isDaylight`, `days`, `nights`, `nowPosition`     | timeline, map layers, `ConditionsStore`, `UrlStateSync` |
-| `ConditionsStore`      | nothing                                                   | `scoreMatrix`, `rankedSpots`, `spotPins`, `selectedSpotDetail`, `legendSpec` | ranking, details and chart, pins, legend                |
-| `PointInspectionStore` | the depth lookup for the tapped point (`rxResource`)      | `elevation`, `forecast`, `reading`                                           | the point readout                                       |
-| `UrlStateSync`         | a `t` waiting for the forecast                            | `?layer=&spot=&t=` in both directions                                        | started from `app.config.ts`                            |
+| Store                  | Owns                                                      | Derives                                                                                   | Read by                                                 |
+| ---------------------- | --------------------------------------------------------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------- |
+| `ForecastStore`        | the load request, the last loaded result                  | `status`, `bundle`, `grid`, `gridStatus`, `fetchedAt`, `source`, `error`, `isRateLimited` | every other store, map layers, status messages          |
+| `ConnectivityStore`    | whether the browser is online                             | `online`                                                                                  | `ForecastStore`, offline notices                        |
+| `SettingsStore`        | units and map choices, saved to localStorage              | `units`, `mapPreferences`                                                                 | `MapUiStore`, `ConditionsStore`, Units popover, pipes   |
+| `MapUiStore`           | selected and hovered spot, region filter, inspected point | `activeLayer`, `particlesOn`, `spotsOn`, `isDepth`, field and vector keys                 | map layers, controls, panels, `UrlStateSync`            |
+| `TimelineStore`        | selected hour, playback                                   | `nowHour`, `selectedTime`, `isDaylight`, `days`, `nights`, `nowPosition`                  | timeline, map layers, `ConditionsStore`, `UrlStateSync` |
+| `ConditionsStore`      | nothing                                                   | `scoreMatrix`, `rankedSpots`, `spotPins`, `selectedSpotDetail`, `legendSpec`              | ranking, details and chart, pins, legend                |
+| `PointInspectionStore` | the depth lookup for the tapped point (`rxResource`)      | `elevation`, `forecast`, `reading`                                                        | the point readout                                       |
+| `UrlStateSync`         | a `t` waiting for the forecast                            | `?layer=&spot=&t=` in both directions                                                     | started from `app.config.ts`                            |
 
 - **One owner for preferences.** `SettingsStore` owns the units and the map choices (layer,
   particles, spots) in one validated, versioned record. `MapUiStore` exposes them as `computed`s and
