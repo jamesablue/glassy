@@ -4,9 +4,13 @@ import { ApplicationRef } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { of, Subject } from 'rxjs';
 import { recordedForecastBundle } from '../../testing/forecast-bundle';
-import { FakeClock } from '../../testing/state-providers';
+import { FakeClock, spotHalf } from '../../testing/state-providers';
 import { CLOCK } from '../core/clock';
-import { ForecastRepository, type ForecastResult } from '../data/forecast.repository';
+import {
+  ForecastRepository,
+  type ForecastResult,
+  type FreshForecastResult,
+} from '../data/forecast.repository';
 import { MapUiStore } from './map-ui.store';
 import { PREFERENCES_STORAGE_KEY } from './settings.store';
 import { PLAYBACK_INTERVAL_MS, TimelineStore } from './timeline.store';
@@ -17,10 +21,11 @@ const MORNING = Date.UTC(2026, 9, 18, 18, 30);
 const NOW_HOUR = 8;
 
 describe('UrlStateSync', () => {
-  const result: ForecastResult = {
+  const result: FreshForecastResult = {
     bundle: recordedForecastBundle(),
     fetchedAt: MORNING,
     source: 'network',
+    gridStatus: 'ready',
   };
   /** Set by a test that wants to hold the forecast back; otherwise it loads straight away. */
   let heldForecast: Subject<ForecastResult> | undefined;
@@ -103,6 +108,27 @@ describe('UrlStateSync', () => {
       forecast.complete();
       await settle();
 
+      expect(timeline.selectedHour()).toBe(30);
+      expect(query()).toEqual({ t: '2026-10-19T06' });
+    });
+
+    it('applies the hour to the spot forecast, and keeps it when the map grid lands', async () => {
+      const forecast = new Subject<ForecastResult>();
+      heldForecast = forecast;
+      await open('/?t=2026-10-19T06');
+
+      forecast.next({
+        source: 'network',
+        bundle: spotHalf(result.bundle),
+        fetchedAt: MORNING,
+        gridStatus: 'loading',
+      });
+      await settle();
+      expect(timeline.selectedHour()).toBe(30);
+
+      forecast.next(result);
+      forecast.complete();
+      await settle();
       expect(timeline.selectedHour()).toBe(30);
       expect(query()).toEqual({ t: '2026-10-19T06' });
     });

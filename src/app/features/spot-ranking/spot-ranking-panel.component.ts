@@ -29,8 +29,9 @@ import { SpotRankingRowComponent } from './spot-ranking-row.component';
  * filter. The header folds the list away (it starts folded on a phone, so the map stays visible);
  * opening a spot unfolds it, so the list is there on the way back.
  *
- * When the forecast on show is stale (a refresh failed), the header says when it was fetched. A
- * region with no spots says so, with a way back to all of them.
+ * When the forecast on show is an older cached one (while it refreshes, or after the refresh
+ * failed), the header says when it was fetched. A region with no spots says so, with a way back
+ * to all of them.
  *
  * Hovering a row highlights the spot's pin and the other way round, through
  * `MapUiStore.hoveredSpotId`. Clicking a row selects the spot, which opens its details and flies
@@ -65,10 +66,13 @@ export class SpotRankingPanelComponent {
 
   /** Whether a forecast has loaded, so an empty list means an empty region. */
   protected readonly loaded = computed(() => this.timeline.hourCount() > 0);
-  /** When the stale forecast on show was fetched, for example "Sun 7 AM", or `null`. */
+  /**
+   * When the older cached forecast on show was fetched, for example "Sun 7 AM", or `null`. It shows
+   * while that forecast is being refreshed as well as after a refresh failed.
+   */
   protected readonly staleSince = computed(() => {
     const fetchedAt = this.forecast.fetchedAt();
-    if (this.forecast.status() !== 'stale' || fetchedAt === undefined) return null;
+    if (this.forecast.source() !== 'stale-cache' || fetchedAt === undefined) return null;
     return timeLabel(fetchedAt / 1000);
   });
 

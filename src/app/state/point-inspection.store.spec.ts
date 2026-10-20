@@ -1,7 +1,11 @@
 import { TestBed } from '@angular/core/testing';
 import { NEVER, of, Subject, throwError, type Observable } from 'rxjs';
 import { testForecastBundle } from '../../testing/forecast-bundle';
-import { provideTestForecast } from '../../testing/state-providers';
+import {
+  provideScriptedForecast,
+  provideTestForecast,
+  ScriptedForecastRepository,
+} from '../../testing/state-providers';
 import { BathymetryClient } from '../data/noaa/bathymetry.client';
 import { samplePoint, toVectorField } from '../domain/grid';
 import type { ForecastBundle, GridSpec } from '../domain/models';
@@ -181,5 +185,45 @@ describe('PointInspectionStore', () => {
       forecast: store.forecast(),
       elevation: { status: 'ready', meters: 12 },
     });
+  });
+});
+
+describe('PointInspectionStore with a forecast that arrives in parts', () => {
+  const NOW = 1_800_000_000 * 1000;
+  const INSIDE = { lat: 21.06, lon: -157.94 };
+  const bundle = gridBundle();
+  let repository: ScriptedForecastRepository;
+  let store: PointInspectionStore;
+
+  beforeEach(async () => {
+    localStorage.clear();
+    repository = new ScriptedForecastRepository();
+    TestBed.configureTestingModule({
+      providers: [
+        ...provideScriptedForecast(repository, NOW),
+        { provide: BathymetryClient, useValue: { elevationAt: () => NEVER } },
+      ],
+    });
+    store = TestBed.inject(PointInspectionStore);
+    TestBed.inject(MapUiStore).inspect(INSIDE);
+    TestBed.tick();
+    repository.serveSpots(bundle, NOW);
+    TestBed.tick();
+  });
+
+  it('waits for the map grid while only the spot forecast is in', () => {
+    expect(store.forecast()).toEqual({ status: 'loading' });
+  });
+
+  it('samples the grid once it lands', () => {
+    repository.succeed(bundle, NOW);
+    TestBed.tick();
+    expect(store.forecast()?.status).toBe('ready');
+  });
+
+  it('says the forecast is unavailable when the grid failed', () => {
+    repository.failGrid(bundle, NOW);
+    TestBed.tick();
+    expect(store.forecast()).toEqual({ status: 'unavailable' });
   });
 });

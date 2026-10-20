@@ -5,16 +5,24 @@ service with private writable signals, a read-only public surface (`asReadonly()
 methods named after what the user does. RxJS appears only where the stores meet the repository
 (`rxResource`) and nothing here holds state in a `Subject`.
 
-| Store                  | Owns (writable)                                             | Derives (`computed`)                                                                                     | Read by                                                        |
-| ---------------------- | ----------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
-| `ForecastStore`        | the load request; the last loaded `ForecastResult`          | `status`, `bundle`, `fetchedAt`, `source`, `error`, `isRateLimited`; reloads when back online            | every other store; loading overlay and notices                 |
-| `ConnectivityStore`    | whether the browser reports a connection                    | `online`, from the `online` and `offline` events                                                         | `ForecastStore`; the offline notices                           |
-| `SettingsStore`        | `Preferences`: units and map choices, saved to localStorage | `units`, `mapPreferences`                                                                                | `MapUiStore`, `ConditionsStore`; units popover, unit pipes     |
-| `MapUiStore`           | selected spot, hovered spot, region filter, inspected point | `activeLayer`, `particlesOn`, `spotsOn` (through `SettingsStore`), `selectedSpot`, `isDepth`, field keys | `ConditionsStore`, `UrlStateSync`; map layers, controls, panel |
-| `TimelineStore`        | selected hour, playback                                     | `hourCount`, `nowHour`, `nowPosition`, `todayKey`, `selectedTime`, `isDaylight`, `days`, `nights`        | `ConditionsStore`, `UrlStateSync`; timeline, map layers        |
-| `ConditionsStore`      | nothing                                                     | `scoreMatrix`, `rankedSpots`, `spotPins`, `selectedSpotDetail`, `legendSpec`                             | ranking, detail panel and chart, spot markers, legend          |
-| `UrlStateSync`         | a `t` waiting for the forecast                              | `?layer=&spot=&t=` in both directions (see its TSDoc for the format and rules)                           | started from `app.config.ts`                                   |
-| `PointInspectionStore` | the elevation lookup for the inspected point (`rxResource`) | `elevation` (loading, ready, no data, error), `forecast` (sampled for the selected hour), `reading`      | the map's point inspector                                      |
+| Store                  | Owns (writable)                                             | Derives (`computed`)                                                                                                | Read by                                                        |
+| ---------------------- | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| `ForecastStore`        | the load request; the last loaded `ForecastResult`          | `status`, `bundle`, `grid`, `gridStatus`, `fetchedAt`, `source`, `error`, `isRateLimited`; reloads when back online | every other store; map layers, loading overlay, chip, notices  |
+| `ConnectivityStore`    | whether the browser reports a connection                    | `online`, from the `online` and `offline` events                                                                    | `ForecastStore`; the offline notices                           |
+| `SettingsStore`        | `Preferences`: units and map choices, saved to localStorage | `units`, `mapPreferences`                                                                                           | `MapUiStore`, `ConditionsStore`; units popover, unit pipes     |
+| `MapUiStore`           | selected spot, hovered spot, region filter, inspected point | `activeLayer`, `particlesOn`, `spotsOn` (through `SettingsStore`), `selectedSpot`, `isDepth`, field keys            | `ConditionsStore`, `UrlStateSync`; map layers, controls, panel |
+| `TimelineStore`        | selected hour, playback                                     | `hourCount`, `nowHour`, `nowPosition`, `todayKey`, `selectedTime`, `isDaylight`, `days`, `nights`                   | `ConditionsStore`, `UrlStateSync`; timeline, map layers        |
+| `ConditionsStore`      | nothing                                                     | `scoreMatrix`, `rankedSpots`, `spotPins`, `selectedSpotDetail`, `legendSpec`                                        | ranking, detail panel and chart, spot markers, legend          |
+| `UrlStateSync`         | a `t` waiting for the forecast                              | `?layer=&spot=&t=` in both directions (see its TSDoc for the format and rules)                                      | started from `app.config.ts`                                   |
+| `PointInspectionStore` | the elevation lookup for the inspected point (`rxResource`) | `elevation` (loading, ready, no data, error), `forecast` (sampled for the selected hour), `reading`                 | the map's point inspector                                      |
+
+**A forecast in two parts.** A first visit gets the spot forecast before the map grid (see
+`data/`), so `ForecastStore` keeps them apart: `bundle` is the spot forecast the ranking, the details,
+the timeline and the URL's `t` work from, and `grid` with `gridStatus` (`loading`, `ready`, `failed`)
+is what the map draws. `bundle` only changes when the spot data does, so the grid's arrival leaves
+the scores, the ranking and the selected hour untouched; if the complete forecast ends up on fewer
+hours, `TimelineStore` keeps the selected hour by its time. A returning visitor's stale forecast shows
+at once with `status: 'loading'` and `source: 'stale-cache'` while it refreshes.
 
 `PointInspectionStore` exists because `map/` may not import `data/`: the map asks the store for the depth at a
 tapped point, and the store asks `BathymetryClient`. Keying the lookup on the point means tapping elsewhere

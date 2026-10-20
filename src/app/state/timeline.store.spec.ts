@@ -2,7 +2,11 @@ import { ApplicationRef } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { of } from 'rxjs';
 import { recordedForecastBundle, testForecastBundle } from '../../testing/forecast-bundle';
-import { FakeClock } from '../../testing/state-providers';
+import {
+  FakeClock,
+  provideScriptedForecast,
+  ScriptedForecastRepository,
+} from '../../testing/state-providers';
 import { CLOCK } from '../core/clock';
 import { ForecastRepository, type ForecastResult } from '../data/forecast.repository';
 import type { ForecastBundle } from '../domain/models';
@@ -25,6 +29,7 @@ describe('TimelineStore', () => {
       bundle,
       fetchedAt: now,
       source: 'network',
+      gridStatus: 'ready',
     }));
     // The last bundle answers every later load.
     const load = vi.fn(() => of(results.length > 1 ? results.shift() : results[0]));
@@ -273,6 +278,51 @@ describe('TimelineStore', () => {
 
       expect(timeline.selectedHour()).toBe(timeline.nowHour());
       expect(timeline.selectedTime()).toBe(START + 2 * 3600);
+    });
+  });
+
+  describe('when the map grid arrives after the spot forecast', () => {
+    const START = 1_800_000_000;
+    const complete = testForecastBundle(6, START);
+    let repository: ScriptedForecastRepository;
+    let timeline: TimelineStore;
+
+    beforeEach(async () => {
+      repository = new ScriptedForecastRepository();
+      TestBed.configureTestingModule({
+        providers: provideScriptedForecast(repository, START * 1000),
+      });
+      timeline = TestBed.inject(TimelineStore);
+      TestBed.tick();
+      repository.serveSpots(complete, START * 1000);
+      await loaded();
+    });
+
+    it('has the hours, and the selection, from the spot forecast alone', () => {
+      expect(timeline.hourCount()).toBe(6);
+      timeline.seek(3);
+      expect(timeline.selectedTime()).toBe(START + 3 * 3600);
+    });
+
+    it('keeps the axis and the selected hour as they are', async () => {
+      timeline.seek(3);
+      const times = timeline.times();
+      repository.succeed(complete, START * 1000);
+      await loaded();
+
+      expect(timeline.times()).toBe(times);
+      expect(timeline.selectedHour()).toBe(3);
+    });
+
+    it('keeps the selected time when the complete forecast covers fewer hours', async () => {
+      timeline.seek(3);
+      // The grid starts an hour later, so the complete forecast is cut to its hours.
+      repository.succeed(testForecastBundle(5, START + 3600), START * 1000);
+      await loaded();
+
+      expect(timeline.hourCount()).toBe(5);
+      expect(timeline.selectedTime()).toBe(START + 3 * 3600);
+      expect(timeline.selectedHour()).toBe(2);
     });
   });
 });

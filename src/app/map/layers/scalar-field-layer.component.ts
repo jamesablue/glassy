@@ -11,7 +11,8 @@ import { keepLayerOnMap } from './keep-layer-on-map';
 /**
  * A forecast field (wind speed, wave height, swell period…) as a colour overlay in the `field` pane.
  * It redraws when the map settles after a move or zoom, and when the field, palette or hour changes.
- * Without a field (on the depth layer, or before the forecast loads) it draws nothing.
+ * Without a field (on the depth layer, or before the map grid arrives, which can be well after the
+ * spot forecast) it draws nothing.
  */
 @Component({ selector: 'glassy-scalar-field-layer', template: '' })
 export class ScalarFieldLayerComponent {

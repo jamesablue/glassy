@@ -7,7 +7,7 @@ import {
   tapOpenSea,
   waitForForecast,
 } from './support/glassy';
-import { failForecastRequests, showStaleForecast } from './support/states';
+import { failForecastRequests, holdForecastRequest, showStaleForecast } from './support/states';
 import { expect, test } from './support/test';
 
 test.describe('accessibility (axe, WCAG 2.2 AA)', () => {
@@ -73,6 +73,14 @@ test.describe('accessibility (axe, WCAG 2.2 AA)', () => {
     await expect(page.getByRole('alertdialog')).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(page.getByRole('alert')).toContainText('Retry');
+    await expectNoAxeViolations(page);
+  });
+
+  test('the map layers chip has no violations', async ({ page }) => {
+    await holdForecastRequest(page, 'gridWind');
+    await page.goto('/');
+    await showRanking(page);
+    await expect(page.getByRole('status').filter({ hasText: 'Loading map layers…' })).toBeVisible();
     await expectNoAxeViolations(page);
   });
 

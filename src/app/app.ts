@@ -43,18 +43,19 @@ export class App {
   protected readonly conditions = inject(ConditionsStore);
 
   protected readonly hour = this.timeline.selectedHour;
-  protected readonly grid = computed(() => this.forecast.bundle()?.grid.spec);
+  /** The map grid arrives after the spot forecast; until then the field and particles draw nothing. */
+  protected readonly grid = computed(() => this.forecast.grid()?.spec);
   /** Wind colours cover the land too; the sea layers keep the land dark. */
   protected readonly surfaceMode = computed(() =>
     this.mapUi.activeLayer() === 'wind' ? 'wind' : 'sea',
   );
   protected readonly field = computed(() => {
     const key = this.mapUi.activeFieldKey();
-    return key ? this.forecast.bundle()?.grid.fields[key] : undefined;
+    return key ? this.forecast.grid()?.fields[key] : undefined;
   });
   protected readonly vectors = computed(() => {
     const key = this.mapUi.activeVectorKey();
-    return key ? this.forecast.bundle()?.grid.vectors[key] : undefined;
+    return key ? this.forecast.grid()?.vectors[key] : undefined;
   });
   protected readonly palette = computed(() => {
     const layer = this.mapUi.activeLayerDefinition();

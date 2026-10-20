@@ -76,8 +76,12 @@ export interface SpotForecast {
   readonly series: Readonly<Record<SpotVariable, Float32Array>>;
 }
 
-/** Everything the app draws and scores, aligned to one hourly time axis. */
-export interface ForecastBundle {
+/**
+ * The spot half of a forecast: every spot's series on one hourly time axis, with the island's
+ * daylight. It is all the scoring, the ranking, the spot details and the timeline need, so the app
+ * can show it before the map grid, which comes from slower requests, has arrived.
+ */
+export interface SpotForecastBundle {
   /** Start of each forecast hour, Unix seconds. */
   readonly times: readonly number[];
   /**
@@ -85,6 +89,13 @@ export interface ForecastBundle {
    * Oahu, so the data layer takes it from the first spot.
    */
   readonly isDay: readonly boolean[];
-  readonly grid: GridForecast;
   readonly spots: SpotForecast;
+}
+
+/**
+ * Everything the app draws and scores, aligned to one hourly time axis: the spot forecast and the
+ * map grid's fields and vectors for the same hours.
+ */
+export interface ForecastBundle extends SpotForecastBundle {
+  readonly grid: GridForecast;
 }

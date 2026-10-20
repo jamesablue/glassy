@@ -22,8 +22,16 @@ export interface GlassyConfig {
   readonly timeZone: string;
   /** A cached forecast younger than this is used without asking the network, ms. */
   readonly cacheLifetimeMs: number;
-  /** When a refresh fails, a cached forecast younger than this is shown instead, ms. */
+  /**
+   * When no fresh copy is cached, a cached forecast younger than this is shown at once while it is
+   * refreshed in the background, and kept when the refresh fails, ms.
+   */
   readonly cacheMaxStaleMs: number;
+  /**
+   * How long each forecast request may take, retries included, before the app stops waiting for
+   * it, ms. The requests run in parallel, so this is also the longest a load waits on the network.
+   */
+  readonly forecastRequestTimeoutMs: number;
   /** How far out to sea marine values are read for each spot, km (see `offshorePoint`). */
   readonly offshoreDistanceKm: number;
 }
@@ -40,5 +48,7 @@ export const DEFAULT_GLASSY_CONFIG: GlassyConfig = {
   timeZone: HONOLULU_TIME_ZONE,
   cacheLifetimeMs: 45 * MINUTE_MS,
   cacheMaxStaleMs: 12 * HOUR_MS,
+  // Open-Meteo usually answers within a few seconds, and has been seen to take about a minute.
+  forecastRequestTimeoutMs: 25_000,
   offshoreDistanceKm: OFFSHORE_DISTANCE_KM,
 };

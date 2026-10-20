@@ -2,6 +2,8 @@ import {
   appNotice,
   forecastNotice,
   loadErrorMessage,
+  MAP_OVERLAY_UNAVAILABLE,
+  mapLayersPending,
   NOTICE_AUTO_HIDE_MS,
   sameNotice,
   type ForecastState,
@@ -15,6 +17,7 @@ describe('forecastNotice', () => {
     rateLimited: false,
     fetchedAt: SUNDAY_3PM,
     online: true,
+    gridStatus: 'ready',
     ...changes,
   });
 
@@ -59,6 +62,24 @@ describe('forecastNotice', () => {
     ).toBe("You're offline. The forecast refreshes when you're back online.");
   });
 
+  it('has nothing to say while the map grid is on its way', () => {
+    expect(forecastNotice(state({ gridStatus: 'loading' }))).toBeNull();
+  });
+
+  it('says politely when the map overlay could not be loaded, then goes away', () => {
+    expect(forecastNotice(state({ gridStatus: 'failed' }))).toEqual({
+      message: MAP_OVERLAY_UNAVAILABLE,
+      actionLabel: null,
+      urgent: false,
+      autoHideMs: NOTICE_AUTO_HIDE_MS,
+    });
+    expect(MAP_OVERLAY_UNAVAILABLE).toMatch(/^Map overlay unavailable/);
+    // Being offline explains it better.
+    expect(forecastNotice(state({ gridStatus: 'failed', online: false }))?.message).toMatch(
+      /^You're offline/,
+    );
+  });
+
   it('offers a retry when nothing could be loaded', () => {
     expect(forecastNotice(state({ status: 'error', fetchedAt: undefined }))).toEqual({
       message: "Couldn't load the forecast. Check your connection and try again.",
@@ -87,6 +108,31 @@ describe('forecastNotice', () => {
       actionLabel: 'Retry',
       urgent: true,
     });
+  });
+});
+
+describe('mapLayersPending', () => {
+  const state = (changes: Partial<ForecastState>): ForecastState => ({
+    status: 'ready',
+    rateLimited: false,
+    fetchedAt: Date.UTC(2026, 9, 19, 1),
+    online: true,
+    gridStatus: 'loading',
+    ...changes,
+  });
+
+  it('is pending while a fresh spot forecast waits for its grid', () => {
+    expect(mapLayersPending(state({}))).toBe(true);
+  });
+
+  it.each([
+    ['the grid is in', { gridStatus: 'ready' }],
+    ['the grid failed', { gridStatus: 'failed' }],
+    ['nothing is on show yet', { status: 'loading', gridStatus: undefined }],
+    ['a reload is under way', { status: 'loading' }],
+    ['the reload failed', { status: 'error' }],
+  ] as const)('is not pending when %s', (_, changes) => {
+    expect(mapLayersPending(state(changes))).toBe(false);
   });
 });
 
@@ -137,6 +183,7 @@ describe('sameNotice', () => {
     rateLimited: false,
     fetchedAt: undefined,
     online: true,
+    gridStatus: undefined,
   };
 
   it('compares what the notices say', () => {

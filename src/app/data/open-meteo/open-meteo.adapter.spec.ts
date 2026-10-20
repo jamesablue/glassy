@@ -6,7 +6,13 @@ import {
   openMeteoLocation,
   valueCode,
 } from '../../../testing/open-meteo-builders';
-import { packHourly, sharedHours, toForecastBundle } from './open-meteo.adapter';
+import {
+  packHourly,
+  sharedHours,
+  toForecastBundle,
+  toSpotForecastBundle,
+  withGrid,
+} from './open-meteo.adapter';
 import type { OpenMeteoForecastResponses } from './open-meteo.types';
 import {
   GRID_MARINE_VARS,
@@ -274,5 +280,67 @@ describe('toForecastBundle', () => {
         2,
       ),
     ).toThrow(/spot weather/);
+  });
+
+  describe('toSpotForecastBundle', () => {
+    it('makes the same spot forecast from the spot responses alone', () => {
+      const { spotMarine, spotWeather } = responses();
+      const spots = toSpotForecastBundle({ spotMarine, spotWeather }, 2);
+      const complete = toForecastBundle(responses(), grid, 2);
+
+      expect(spots).toEqual({
+        times: complete.times,
+        isDay: complete.isDay,
+        spots: complete.spots,
+      });
+      expect(spots).not.toHaveProperty('grid');
+    });
+
+    it('lines the two spot datasets up on the hours they share', () => {
+      const spots = toSpotForecastBundle(
+        {
+          spotMarine: codedResponse(SPOT_MARINE_VARS, 2, times),
+          spotWeather: codedResponse(SPOT_WEATHER_VARS, 2, hourlyTimes(START - HOUR, 3)),
+        },
+        2,
+      );
+      expect(spots.times).toEqual([START, START + HOUR]);
+      expect(spots.spots.series.windSpeed[1]).toBe(weather('wind_speed_10m', 1, 1));
+    });
+
+    it('rejects responses that do not match the catalog', () => {
+      const { spotMarine, spotWeather } = responses();
+      expect(() => toSpotForecastBundle({ spotMarine, spotWeather }, 3)).toThrow(/spot marine/);
+    });
+  });
+
+  describe('withGrid', () => {
+    it('keeps the spot forecast as it is when the grid shares its hours', () => {
+      const all = responses();
+      const spots = toSpotForecastBundle(all, 2);
+      const complete = withGrid(spots, all, grid, 2);
+
+      expect(complete.times).toBe(spots.times);
+      expect(complete.isDay).toBe(spots.isDay);
+      expect(complete.spots).toBe(spots.spots);
+      expect(complete.grid).toEqual(toForecastBundle(all, grid, 2).grid);
+    });
+
+    it('moves everything to the shared hours when the grid covers fewer', () => {
+      // The grid wind ends an hour before the spot datasets do.
+      const all = responses({ gridWind: codedResponse(GRID_WIND_VARS, 2, hourlyTimes(START, 2)) });
+      const spots = toSpotForecastBundle(all, 2);
+      const complete = withGrid(spots, all, grid, 2);
+
+      expect(spots.times).toHaveLength(3);
+      expect(complete).toEqual(toForecastBundle(all, grid, 2));
+      expect(complete.times).toEqual([START, START + HOUR]);
+      expect(complete.spots.hourCount).toBe(2);
+    });
+
+    it('rejects grid responses that do not match the grid', () => {
+      const all = responses({ gridWind: codedResponse(GRID_WIND_VARS, 1, times) });
+      expect(() => withGrid(toSpotForecastBundle(all, 2), all, grid, 2)).toThrow(/grid wind/);
+    });
   });
 });
