@@ -14,6 +14,7 @@ every file describes the same forecast.
 | `raw/noaa-identify-nodata.json`    | The same for a point outside the mosaic (`"value": "NoData"`)                      | same                                                        |
 | `raw/manifest.json`                | Recording time, the exact URL behind each raw file, and data attribution           | adapter fixture test, end-to-end network mocks              |
 | `spot-forecast.fixture.json`       | Each spot's hourly series in the domain's variable names, unpacked by the recorder | golden scoring test, adapter fixture test                   |
+| `forecast-snapshot.json`           | The `forecast.json` snapshot the backend builds from the `raw/` responses          | snapshot decoder fixture test                               |
 | `spot-forecast.expected.json`      | Scores, surf heights and rankings from the original prototype's code               | golden scoring test                                         |
 
 ## Raw responses
@@ -28,14 +29,17 @@ To mock the network, serve each file for the URL listed next to it in `manifest.
 
 The backend reads the same files: its URL test checks the ingest's requests against `manifest.json`, and
 `npm run snapshot:fixtures` (`backend/src/ingest/fixtures.ts`) builds a `forecast.json` snapshot from them with
-no network, dated to `recordedAt`.
+no network, dated to `recordedAt`. That snapshot is committed as `forecast-snapshot.json`, because the
+app's tests may not import the backend; a backend test fails when it no longer matches.
 
 ## Refreshing
 
 ```sh
 npm run fixtures:record    # needs network access to Open-Meteo and NOAA
 npm run fixtures:expected  # re-scores the new data with the prototype's code
+npm run snapshot:fixtures -- --out src/testing/fixtures/forecast-snapshot.json
 ```
 
-Both steps rewrite tracked files; commit them together. Open-Meteo data is CC BY 4.0
+All three steps rewrite tracked files; commit them together. Rerun the last one alone whenever the
+snapshot format changes. Open-Meteo data is CC BY 4.0
 (https://open-meteo.com); the DEM data is from NOAA NCEI.

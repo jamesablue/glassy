@@ -8,6 +8,9 @@ Talks to the outside world and turns responses into domain types.
   and the adapter that packs the responses into a domain `ForecastBundle` (`toForecastBundle`), or the
   spot responses alone into a `SpotForecastBundle` that the grid completes later (`toSpotForecastBundle`,
   `withGrid`)
+- `snapshot/`: `decodeSnapshot`, which turns a `forecast.json` snapshot that `parseSnapshot` (from
+  `@glassy/shared`) has accepted into the same `ForecastBundle` the Open-Meteo adapter builds. #40
+  switches the repository to it
 - `noaa/`: point elevations from the NOAA DEM ImageServer (`BathymetryClient`), the raster function rules
   for land and depth tiles, the `exportImage` tile URL builder, and `NoaaTerrainTileSources`, which implements
   the `TERRAIN_TILE_SOURCES` token from `core/` with them so the map gets tile URLs without importing `data/`

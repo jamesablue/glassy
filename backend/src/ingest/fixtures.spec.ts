@@ -1,7 +1,12 @@
-import { OAHU_SPOTS, parseSnapshot, SPOT_VARIABLES } from '@glassy/shared';
+import { decodeSeries, OAHU_SPOTS, parseSnapshot, SPOT_VARIABLES } from '@glassy/shared';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { readManifest, RECORDED_FIXTURES_DIR, snapshotFromFixtures } from './fixtures';
+import {
+  readManifest,
+  RECORDED_FIXTURES_DIR,
+  SNAPSHOT_FIXTURE_PATH,
+  snapshotFromFixtures,
+} from './fixtures';
 import { DEFAULT_INGEST_SETTINGS } from './settings';
 
 /** `spot-forecast.fixture.json`: each spot's series, unpacked by the recorder on its own. */
@@ -44,21 +49,33 @@ describe('snapshotFromFixtures', () => {
     expect(snapshot.spots.ids).toEqual(fixture.spotIds);
     for (const variable of SPOT_VARIABLES) {
       const bySpot = fixture.series[variable] ?? [];
-      // The fixture is spot by spot; the snapshot is hour by hour.
+      // The fixture is spot by spot; a decoded series is hour by hour.
       const hourMajor = fixture.times.flatMap((_, hour) =>
-        OAHU_SPOTS.map((_, spot) => bySpot[spot]?.[hour] ?? null),
+        OAHU_SPOTS.map((_, spot) => bySpot[spot]?.[hour] ?? NaN),
       );
-      expect(snapshot.spots.series[variable], variable).toEqual(hourMajor);
+      expect(decodeSeries(snapshot.spots.series[variable], OAHU_SPOTS.length), variable).toEqual(
+        Float32Array.from(hourMajor),
+      );
     }
   });
 
   it('fills the map grid around the island', async () => {
     const snapshot = await snapshotFromFixtures(DEFAULT_INGEST_SETTINGS);
     const { rows, cols } = DEFAULT_INGEST_SETTINGS.grid;
-    const { windSpeed, swellHeight } = snapshot.grid.fields;
+    const windSpeed = decodeSeries(snapshot.grid.fields.windSpeed, rows * cols);
+    const swellHeight = decodeSeries(snapshot.grid.fields.swellHeight, rows * cols);
     expect(windSpeed).toHaveLength(snapshot.times.length * rows * cols);
     // `cell_selection=sea` reads the nearest sea cell, so even cells over land have marine values.
-    expect(windSpeed.every((value) => value !== null)).toBe(true);
-    expect(swellHeight.every((value) => value !== null && value > 0)).toBe(true);
+    expect(windSpeed.every((value) => !Number.isNaN(value))).toBe(true);
+    expect(swellHeight.every((value) => value > 0)).toBe(true);
+  });
+
+  it('matches the snapshot fixture the app tests decode', async () => {
+    const [snapshot, committed] = await Promise.all([
+      snapshotFromFixtures(DEFAULT_INGEST_SETTINGS),
+      readFile(SNAPSHOT_FIXTURE_PATH, 'utf8'),
+    ]);
+    // When this fails, regenerate it: see src/testing/fixtures/README.md.
+    expect(JSON.parse(committed)).toEqual(JSON.parse(JSON.stringify(snapshot)));
   });
 });

@@ -1,5 +1,6 @@
 import { catalogFingerprint } from './catalog-fingerprint';
 import { sameGrid, type GridSpec } from './grid';
+import { MAX_SERIES_DECIMALS, type EncodedSeries } from './series-codec';
 import type { Spot } from './spots';
 import { GRID_VARIABLES, SPOT_VARIABLES, type GridVariable, type SpotVariable } from './variables';
 
@@ -7,8 +8,8 @@ import { GRID_VARIABLES, SPOT_VARIABLES, type GridVariable, type SpotVariable } 
  * The version of the snapshot format below. Changing the format means a new version, and an app
  * that accepts both versions ships before a backend that writes the new one (ADR-0010).
  *
- * Version 1 is provisional until the ingest publishes in production (#38): #39 may still change it
- * in place.
+ * Version 1 is provisional until the ingest publishes in production (#38), and may still change in
+ * place until then.
  */
 export const SNAPSHOT_FORMAT_VERSION = 1;
 
@@ -31,12 +32,10 @@ export const OPEN_METEO_SOURCE: SnapshotSource = {
   modified: true,
 };
 
-/** Hourly values, hour-major: `count` values per hour, `null` where the model has no data. */
-export type SnapshotSeries = readonly (number | null)[];
-
 /**
  * One forecast for the whole island, written by the backend ingest as `forecast.json`. Every
- * series is on the same hourly time axis, `times`.
+ * series is on the same hourly time axis, `times`, and encoded as an {@link EncodedSeries}: one
+ * run of hours per spot or grid cell. Decode one with `decodeSeries`.
  */
 export interface ForecastSnapshot {
   readonly formatVersion: typeof SNAPSHOT_FORMAT_VERSION;
@@ -50,13 +49,13 @@ export interface ForecastSnapshot {
   readonly spots: {
     /** Spot ids in catalog order: the order of the values within each hour. */
     readonly ids: readonly string[];
-    /** `ids.length` values per hour: index = `hour * ids.length + spot`. `isDay` is 1 or 0. */
-    readonly series: Readonly<Record<SpotVariable, SnapshotSeries>>;
+    /** One run per spot, in `ids` order. `isDay` is 1 or 0. */
+    readonly series: Readonly<Record<SpotVariable, EncodedSeries>>;
   };
   readonly grid: {
     readonly spec: GridSpec;
-    /** `rows * cols` values per hour, in field order (see `gridCellCenters`). */
-    readonly fields: Readonly<Record<GridVariable, SnapshotSeries>>;
+    /** One run per cell, `rows * cols` runs in field order (see `gridCellCenters`). */
+    readonly fields: Readonly<Record<GridVariable, EncodedSeries>>;
   };
 }
 
@@ -66,7 +65,7 @@ export interface ForecastSnapshot {
  * - `unknown-version`: a format this code does not read
  * - `catalog-mismatch`: made for another spot catalog, or the same spots in another order
  * - `grid-mismatch`: made for another forecast grid
- * - `malformed`: missing fields, wrong types or series of the wrong length
+ * - `malformed`: missing fields, wrong types, or series of the wrong length or not in whole numbers
  */
 export type SnapshotErrorCode =
   'unknown-version' | 'catalog-mismatch' | 'grid-mismatch' | 'malformed';
@@ -143,12 +142,21 @@ function checkSeries(
   label: string,
 ): void {
   for (const variable of variables) {
-    const values = series[variable];
-    if (!Array.isArray(values) || values.length !== length) {
+    const encoded = series[variable];
+    if (!isRecord(encoded)) throw malformed(`The ${label} series "${variable}" is missing`);
+    const { decimals, deltas } = encoded;
+    if (
+      !Number.isInteger(decimals) ||
+      (decimals as number) < 0 ||
+      (decimals as number) > MAX_SERIES_DECIMALS
+    ) {
+      throw malformed(`The ${label} series "${variable}" has no valid number of decimals`);
+    }
+    if (!Array.isArray(deltas) || deltas.length !== length) {
       throw malformed(`The ${label} series "${variable}" does not have ${length} values`);
     }
-    if (!values.every((value) => value === null || Number.isFinite(value))) {
-      throw malformed(`The ${label} series "${variable}" holds something other than numbers`);
+    if (!deltas.every((delta) => delta === null || Number.isSafeInteger(delta))) {
+      throw malformed(`The ${label} series "${variable}" holds something other than whole numbers`);
     }
   }
 }

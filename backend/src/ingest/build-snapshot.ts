@@ -1,13 +1,14 @@
 import {
   catalogFingerprint,
+  encodeSeries,
   GRID_VARIABLES,
   OPEN_METEO_SOURCE,
   SNAPSHOT_FORMAT_VERSION,
   SPOT_VARIABLES,
   type ForecastSnapshot,
   type GridSpec,
+  type EncodedSeries,
   type GridVariable,
-  type SnapshotSeries,
   type Spot,
   type SpotVariable,
 } from '@glassy/shared';
@@ -42,55 +43,78 @@ export interface HourRange {
 
 type ResponseId = keyof OpenMeteoForecastResponses;
 
+/**
+ * Where a series comes from, and the decimal places to keep: as many as Open-Meteo sends, so the
+ * snapshot holds exactly the values the API returned (checked against the recorded responses).
+ */
+interface SeriesSource<R extends ResponseId, V extends string> {
+  readonly response: R;
+  readonly variable: V;
+  readonly decimals: number;
+}
+
+function from<R extends ResponseId>(response: R) {
+  return <V extends string>(variable: V, decimals: number): SeriesSource<R, V> => ({
+    response,
+    variable,
+    decimals,
+  });
+}
+
+const spotMarine = from('spotMarine')<SpotMarineVariable>;
+const spotWeather = from('spotWeather')<SpotWeatherVariable>;
+const gridMarine = from('gridMarine')<GridMarineVariable>;
+const gridWind = from('gridWind')<GridWindVariable>;
+
 /** The Open-Meteo variable behind each spot series. */
 const SPOT_SOURCES: Readonly<
   Record<
     SpotVariable,
-    | { readonly response: 'spotMarine'; readonly variable: SpotMarineVariable }
-    | { readonly response: 'spotWeather'; readonly variable: SpotWeatherVariable }
+    | SeriesSource<'spotMarine', SpotMarineVariable>
+    | SeriesSource<'spotWeather', SpotWeatherVariable>
   >
 > = {
-  swellHeight: { response: 'spotMarine', variable: 'swell_wave_height' },
-  swellPeriod: { response: 'spotMarine', variable: 'swell_wave_period' },
-  swellDirection: { response: 'spotMarine', variable: 'swell_wave_direction' },
-  secondarySwellHeight: { response: 'spotMarine', variable: 'secondary_swell_wave_height' },
-  secondarySwellPeriod: { response: 'spotMarine', variable: 'secondary_swell_wave_period' },
-  secondarySwellDirection: { response: 'spotMarine', variable: 'secondary_swell_wave_direction' },
-  windWaveHeight: { response: 'spotMarine', variable: 'wind_wave_height' },
-  windWavePeriod: { response: 'spotMarine', variable: 'wind_wave_period' },
-  windWaveDirection: { response: 'spotMarine', variable: 'wind_wave_direction' },
-  seaSurfaceTemperature: { response: 'spotMarine', variable: 'sea_surface_temperature' },
-  currentSpeed: { response: 'spotMarine', variable: 'ocean_current_velocity' },
-  currentDirection: { response: 'spotMarine', variable: 'ocean_current_direction' },
-  seaLevel: { response: 'spotMarine', variable: 'sea_level_height_msl' },
-  windSpeed: { response: 'spotWeather', variable: 'wind_speed_10m' },
-  windDirection: { response: 'spotWeather', variable: 'wind_direction_10m' },
-  windGust: { response: 'spotWeather', variable: 'wind_gusts_10m' },
-  rainChance: { response: 'spotWeather', variable: 'precipitation_probability' },
-  isDay: { response: 'spotWeather', variable: 'is_day' },
+  swellHeight: spotMarine('swell_wave_height', 2),
+  swellPeriod: spotMarine('swell_wave_period', 2),
+  swellDirection: spotMarine('swell_wave_direction', 0),
+  secondarySwellHeight: spotMarine('secondary_swell_wave_height', 2),
+  secondarySwellPeriod: spotMarine('secondary_swell_wave_period', 2),
+  secondarySwellDirection: spotMarine('secondary_swell_wave_direction', 0),
+  windWaveHeight: spotMarine('wind_wave_height', 2),
+  windWavePeriod: spotMarine('wind_wave_period', 2),
+  windWaveDirection: spotMarine('wind_wave_direction', 0),
+  seaSurfaceTemperature: spotMarine('sea_surface_temperature', 1),
+  currentSpeed: spotMarine('ocean_current_velocity', 1),
+  currentDirection: spotMarine('ocean_current_direction', 0),
+  seaLevel: spotMarine('sea_level_height_msl', 2),
+  windSpeed: spotWeather('wind_speed_10m', 2),
+  windDirection: spotWeather('wind_direction_10m', 0),
+  windGust: spotWeather('wind_gusts_10m', 1),
+  rainChance: spotWeather('precipitation_probability', 0),
+  isDay: spotWeather('is_day', 0),
 };
 
 /** The Open-Meteo variable behind each grid field. */
 const GRID_SOURCES: Readonly<
   Record<
     GridVariable,
-    | { readonly response: 'gridMarine'; readonly variable: GridMarineVariable }
-    | { readonly response: 'gridWind'; readonly variable: GridWindVariable }
+    SeriesSource<'gridMarine', GridMarineVariable> | SeriesSource<'gridWind', GridWindVariable>
   >
 > = {
-  waveHeight: { response: 'gridMarine', variable: 'wave_height' },
-  waveDirection: { response: 'gridMarine', variable: 'wave_direction' },
-  wavePeriod: { response: 'gridMarine', variable: 'wave_period' },
-  swellHeight: { response: 'gridMarine', variable: 'swell_wave_height' },
-  swellDirection: { response: 'gridMarine', variable: 'swell_wave_direction' },
-  swellPeriod: { response: 'gridMarine', variable: 'swell_wave_period' },
-  windSpeed: { response: 'gridWind', variable: 'wind_speed_10m' },
-  windDirection: { response: 'gridWind', variable: 'wind_direction_10m' },
+  waveHeight: gridMarine('wave_height', 2),
+  waveDirection: gridMarine('wave_direction', 0),
+  wavePeriod: gridMarine('wave_period', 2),
+  swellHeight: gridMarine('swell_wave_height', 2),
+  swellDirection: gridMarine('swell_wave_direction', 0),
+  swellPeriod: gridMarine('swell_wave_period', 2),
+  windSpeed: gridWind('wind_speed_10m', 2),
+  windDirection: gridWind('wind_direction_10m', 0),
 };
 
 /**
  * Combines the four Open-Meteo responses into one snapshot, in the domain's variable names, on the
- * hours all four share. Values Open-Meteo has no data for, and variables it left out, become `null`.
+ * hours all four share, each series encoded with `encodeSeries`. Values Open-Meteo has no data for,
+ * and variables it left out, become `null`.
  *
  * @throws Error when the responses do not line up with the grid, the catalog or each other
  */
@@ -106,8 +130,10 @@ export function buildSnapshot(
     spotWeather: expectLocations(responses.spotWeather, target.spots.length, 'spot weather'),
   };
   const hours = sharedHours(Object.values(locations).map((list) => list[0]?.hourly.time ?? []));
-  const pack = (source: { response: ResponseId; variable: string }): SnapshotSeries =>
-    packHourly(locations[source.response], source.variable, hours);
+  const pack = (source: SeriesSource<ResponseId, string>): EncodedSeries => {
+    const series = locations[source.response];
+    return encodeSeries(packHourly(series, source.variable, hours), series.length, source.decimals);
+  };
 
   return {
     formatVersion: SNAPSHOT_FORMAT_VERSION,
@@ -148,7 +174,7 @@ function packHourly(
   locations: readonly OpenMeteoLocation<string>[],
   variable: string,
   hours: HourRange,
-): SnapshotSeries {
+): (number | null)[] {
   const offset = locations[0]?.hourly.time.indexOf(hours.start) ?? 0;
   const values: (number | null)[] = [];
   for (let hour = 0; hour < hours.hourCount; hour++) {

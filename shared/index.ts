@@ -6,6 +6,7 @@
  */
 export * from './catalog-fingerprint';
 export * from './grid';
+export * from './series-codec';
 export * from './snapshot';
 export * from './spots';
 export * from './variables';
