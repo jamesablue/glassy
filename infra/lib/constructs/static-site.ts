@@ -40,7 +40,16 @@ export interface StaticSiteProps {
    * @default - the distribution's `*.cloudfront.net` domain
    */
   readonly customDomain?: CustomDomainProps;
+  /**
+   * The one other origin allowed to read `/forecast.json` from the browser: the GitHub Pages demo
+   * (ADR-0010). The site's own pages are same-origin and need no CORS.
+   * @default - no cross-origin reads
+   */
+  readonly forecastCorsOrigin?: string;
 }
+
+/** The forecast snapshot the ingest writes, served with a CORS header for the Pages demo. */
+export const FORECAST_PATH = '/forecast.json';
 
 /** Status codes S3 returns for a path that is not a file in the bucket. */
 const SPA_FALLBACK_STATUSES = [403, 404] as const;
@@ -60,6 +69,10 @@ const SPA_FALLBACK_STATUSES = [403, 404] as const;
  * A separate cache behaviour for `/index.html` would not be enough: requests
  * for `/` and the SPA fallback for unknown paths both serve index.html without
  * matching that path pattern. Object metadata covers every way it is reached.
+ *
+ * `/forecast.json` has a behavior of its own, so it can carry a CORS header: the same cache policy
+ * (the ingest stores it with `max-age=300`) and the same security headers, plus
+ * `Access-Control-Allow-Origin` for `forecastCorsOrigin`.
  */
 export class StaticSite extends Construct {
   readonly bucket: Bucket;
@@ -87,6 +100,12 @@ export class StaticSite extends Construct {
 
     const domain = props.customDomain && this.prepareCustomDomain(props.customDomain);
 
+    // Origin Access Control signs every origin request with SigV4, so the
+    // bucket stays private and its policy trusts this one distribution
+    // (AWS:SourceArn). OAC replaces the legacy Origin Access Identity,
+    // which AWS no longer recommends and which cannot read SSE-KMS objects.
+    const origin = S3BucketOrigin.withOriginAccessControl(this.bucket);
+
     this.distribution = new Distribution(this, 'Distribution', {
       comment: 'Glassy static site',
       defaultRootObject: 'index.html',
@@ -98,16 +117,26 @@ export class StaticSite extends Construct {
       certificate: domain?.certificate,
       minimumProtocolVersion: domain && SecurityPolicyProtocol.TLS_V1_2_2021,
       defaultBehavior: {
-        // Origin Access Control signs every origin request with SigV4, so the
-        // bucket stays private and its policy trusts this one distribution
-        // (AWS:SourceArn). OAC replaces the legacy Origin Access Identity,
-        // which AWS no longer recommends and which cannot read SSE-KMS objects.
-        origin: S3BucketOrigin.withOriginAccessControl(this.bucket),
+        origin,
         viewerProtocolPolicy: ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
         allowedMethods: AllowedMethods.ALLOW_GET_HEAD,
         cachePolicy: CachePolicy.CACHING_OPTIMIZED,
-        responseHeadersPolicy: this.createSecurityHeadersPolicy(),
+        responseHeadersPolicy: this.createHeadersPolicy('SecurityHeaders'),
       },
+      additionalBehaviors: props.forecastCorsOrigin
+        ? {
+            [FORECAST_PATH]: {
+              origin,
+              viewerProtocolPolicy: ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+              allowedMethods: AllowedMethods.ALLOW_GET_HEAD,
+              cachePolicy: CachePolicy.CACHING_OPTIMIZED,
+              responseHeadersPolicy: this.createHeadersPolicy(
+                'ForecastHeaders',
+                props.forecastCorsOrigin,
+              ),
+            },
+          }
+        : undefined,
       // SPA fallback. With OAC and no s3:ListBucket, S3 answers 403 (not 404)
       // for a missing key. Both are turned into index.html with a 200 so a deep
       // link loads the app, which restores its state from the query. TTL 0 so a
@@ -129,9 +158,26 @@ export class StaticSite extends Construct {
     }
   }
 
-  private createSecurityHeadersPolicy(): ResponseHeadersPolicy {
-    return new ResponseHeadersPolicy(this, 'SecurityHeaders', {
-      comment: 'Glassy security headers',
+  /**
+   * The security headers every response carries, plus CORS for `corsOrigin` when it is given. Both
+   * policies come from here, so `/forecast.json` cannot drift from the rest of the site.
+   */
+  private createHeadersPolicy(id: string, corsOrigin?: string): ResponseHeadersPolicy {
+    return new ResponseHeadersPolicy(this, id, {
+      comment: corsOrigin
+        ? `Glassy security headers, with CORS for ${corsOrigin}`
+        : 'Glassy security headers',
+      // CloudFront adds these only to requests whose Origin header is in the list. Allowed headers
+      // only matter for preflights, which a plain GET does not send.
+      corsBehavior: corsOrigin
+        ? {
+            accessControlAllowOrigins: [corsOrigin],
+            accessControlAllowMethods: ['GET', 'HEAD'],
+            accessControlAllowHeaders: ['*'],
+            accessControlAllowCredentials: false,
+            originOverride: true,
+          }
+        : undefined,
       securityHeadersBehavior: {
         contentSecurityPolicy: {
           contentSecurityPolicy: buildContentSecurityPolicy(),

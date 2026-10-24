@@ -13,6 +13,7 @@ describe('cdk-nag AwsSolutions checks', () => {
         removalPolicy: 'destroy',
       },
     ],
+    ['an alarm email subscription', { alarmEmail: 'ops@example.com' }],
   ])('pass with %s', (_mode, context) => {
     const { app } = buildApp(context);
 

@@ -14,6 +14,7 @@ export const DEFAULTS = {
   githubBranch: 'main',
   createOidcProvider: true,
   removalPolicy: 'retain',
+  forecastCorsOrigin: 'https://jamesablue.github.io',
 } as const;
 
 /** Everything the app reads from CDK context, validated and with defaults applied. */
@@ -25,6 +26,10 @@ export interface GlassyConfig {
   readonly oidcProviderArn: string | undefined;
   readonly customDomain: CustomDomainProps | undefined;
   readonly removalPolicy: RemovalPolicy;
+  /** The other origin that may read `/forecast.json`: the GitHub Pages demo. */
+  readonly forecastCorsOrigin: string;
+  /** Who is emailed when an ingest run fails. */
+  readonly alarmEmail: string | undefined;
 }
 
 /**
@@ -42,6 +47,8 @@ export interface GlassyConfig {
  * | `hostedZoneId`       | none                | Route 53 zone for `domainName`                      |
  * | `hostedZoneName`     | `domainName`        | name of that zone, if it is a parent domain         |
  * | `removalPolicy`      | `retain`            | `destroy` lets `cdk destroy` delete the bucket      |
+ * | `forecastCorsOrigin` | Pages demo origin   | other origin allowed to read `/forecast.json`       |
+ * | `alarmEmail`         | none                | emailed when an ingest run fails                    |
  */
 export function readConfig(node: Node): GlassyConfig {
   const region = stringContext(node, 'region') || DEFAULTS.region;
@@ -70,7 +77,30 @@ export function readConfig(node: Node): GlassyConfig {
     oidcProviderArn: stringContext(node, 'oidcProviderArn') || undefined,
     customDomain,
     removalPolicy: readRemovalPolicy(node),
+    forecastCorsOrigin: readForecastCorsOrigin(node),
+    alarmEmail: readAlarmEmail(node),
   };
+}
+
+function readForecastCorsOrigin(node: Node): string {
+  const value = stringContext(node, 'forecastCorsOrigin') || DEFAULTS.forecastCorsOrigin;
+  // An origin is a scheme and a host, with no path and no trailing slash: browsers compare it
+  // character for character with their Origin header.
+  if (!/^https:\/\/[a-z0-9.-]+(?::\d+)?$/.test(value)) {
+    throw new Error(
+      `Context "forecastCorsOrigin" must be an https origin such as https://example.com, ` +
+        `got "${value}".`,
+    );
+  }
+  return value;
+}
+
+function readAlarmEmail(node: Node): string | undefined {
+  const value = stringContext(node, 'alarmEmail') || undefined;
+  if (value !== undefined && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(value)) {
+    throw new Error(`Context "alarmEmail" must be an email address, got "${value}".`);
+  }
+  return value;
 }
 
 function readCustomDomain(node: Node): CustomDomainProps | undefined {

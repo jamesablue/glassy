@@ -15,7 +15,9 @@ export function addGlassyStack(app: App): GlassyStaticSiteStack {
   const config = readConfig(app.node);
 
   const stack = new GlassyStaticSiteStack(app, STACK_ID, {
-    description: 'Glassy: Oahu snorkel forecast map, served from S3 and CloudFront',
+    description:
+      'Glassy: Oahu snorkel forecast map, served from S3 and CloudFront, with a scheduled ' +
+      'forecast ingest',
     // The region is pinned (not taken from the local AWS profile) so every
     // machine synthesises the same template. The account comes from the
     // credentials used for `cdk deploy`.
@@ -25,6 +27,8 @@ export function addGlassyStack(app: App): GlassyStaticSiteStack {
     oidcProviderArn: config.oidcProviderArn,
     customDomain: config.customDomain,
     removalPolicy: config.removalPolicy,
+    forecastCorsOrigin: config.forecastCorsOrigin,
+    alarmEmail: config.alarmEmail,
   });
 
   Tags.of(app).add('Project', 'glassy');
