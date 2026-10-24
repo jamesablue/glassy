@@ -64,12 +64,12 @@ The production Content-Security-Policy allows exactly these hosts
 [ADR-0010](adr/0010-backend-forecast-snapshot.md) moves the Open-Meteo requests out of the browser.
 The diagram above shows the app as it still works today; #40 switches it to the snapshot.
 
-| Folder     | What it is                                                                                            |
-| ---------- | ----------------------------------------------------------------------------------------------------- |
-| `src/`     | The app, scoring included. It may not import from `backend/`.                                         |
-| `backend/` | The forecast ingest: everything Open-Meteo, building `forecast.json` ([README](../backend/README.md)) |
-| `shared/`  | The snapshot contract both use, imported as `@glassy/shared` ([README](../shared/README.md))          |
-| `infra/`   | The AWS CDK stack                                                                                     |
+| Folder     | What it is                                                                                                                                                    |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/`     | The app, scoring included. It may not import from `backend/`.                                                                                                 |
+| `backend/` | The forecast ingest: everything Open-Meteo, building `forecast.json`, and the Lambda handler that publishes it every 3 hours ([README](../backend/README.md)) |
+| `shared/`  | The snapshot contract both use, imported as `@glassy/shared` ([README](../shared/README.md))                                                                  |
+| `infra/`   | The AWS CDK stack: site hosting, and the scheduled ingest with its alarm ([README](../infra/README.md))                                                       |
 
 ESLint enforces the boundaries between them, next to the layer rules below.
 

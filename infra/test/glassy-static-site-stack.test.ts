@@ -14,15 +14,26 @@ interface PolicyStatement {
   Condition?: { StringEquals: Record<string, string> };
 }
 
+/** Logical id of the GitHub deploy role. The stack has other roles, such as the ingest's. */
+function deployRoleId(template: Template): string | undefined {
+  return Object.keys(template.findResources('AWS::IAM::Role')).find((id) =>
+    id.startsWith('GithubDeployRole'),
+  );
+}
+
 /** The deploy role's trust policy statement. */
 function trustStatement(template: Template): PolicyStatement | undefined {
-  const [role] = Object.values(template.findResources('AWS::IAM::Role'));
+  const role = template.findResources('AWS::IAM::Role')[deployRoleId(template) ?? ''];
   return role?.['Properties'].AssumeRolePolicyDocument.Statement[0];
 }
 
 /** The statements of the deploy role's permissions policy. */
 function permissionStatements(template: Template): PolicyStatement[] {
-  const [policy] = Object.values(template.findResources('AWS::IAM::Policy'));
+  const [policy] = Object.values(
+    template.findResources('AWS::IAM::Policy', {
+      Properties: { Roles: [{ Ref: deployRoleId(template) }] },
+    }),
+  );
   return policy?.['Properties'].PolicyDocument.Statement ?? [];
 }
 
@@ -236,12 +247,16 @@ describe('GlassyStaticSiteStack (default domain)', () => {
     });
   });
 
-  it('outputs the values the deploy workflow needs', () => {
+  it('outputs the values the deploy workflow and the runbook need', () => {
     for (const name of [
       'BucketName',
       'DistributionId',
       'DistributionDomainName',
       'DeployRoleArn',
+      'IngestFunctionName',
+      'IngestLogGroupName',
+      'IngestAlarmName',
+      'IngestAlarmTopicArn',
     ]) {
       template.hasOutput(name, { Value: Match.anyValue() });
     }
@@ -346,6 +361,12 @@ describe('GlassyStaticSiteStack (context options)', () => {
     [{ removalPolicy: 'keep' }, /"removalPolicy" must be "retain" or "destroy"/],
     [{ createOidcProvider: 'no' }, /"createOidcProvider" must be true or false/],
     [{ githubRepository: 'glassy' }, /must look like owner\/name/],
+    [
+      { forecastCorsOrigin: 'https://example.com/' },
+      /"forecastCorsOrigin" must be an https origin/,
+    ],
+    [{ forecastCorsOrigin: 'http://example.com' }, /"forecastCorsOrigin" must be an https origin/],
+    [{ alarmEmail: 'nobody' }, /"alarmEmail" must be an email address/],
   ])('rejects invalid context %j', (context, message) => {
     expect(() => synthTemplate(context)).toThrow(message);
   });
