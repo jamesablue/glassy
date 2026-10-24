@@ -1,10 +1,14 @@
 # ADR-0001: Static SPA with no backend
 
-- **Status:** Accepted
-- **Date:** 2026-10-18
+- **Status:** Superseded by [ADR-0010](0010-backend-forecast-snapshot.md)
+- **Date:** 2026-10-18; superseded 2026-10-23 ([#36](https://github.com/jamesablue/glassy/issues/36))
 - **Deciders:** James Blue
 
 ## Context and problem
+
+> Superseded: the forecast now comes from a snapshot the backend publishes, and the browser makes
+> no weather API calls ([ADR-0010](0010-backend-forecast-snapshot.md)). The rest of this record is
+> kept as it was decided.
 
 Glassy answers one question: where on Oahu is the snorkeling good right now, and when will it be
 good later? Everything it needs is public. Open-Meteo serves marine and weather forecasts with CORS

@@ -27,8 +27,8 @@ Run lint, typecheck, unit and e2e tests before saying a change is done. Node ver
 ## Architecture rules
 
 - **The browser makes no weather API calls.** Open-Meteo is called only by the backend ingest,
-  which publishes one `forecast.json` snapshot every hour. The app reads that snapshot, and falls
-  back only to its IndexedDB copy, never to Open-Meteo. (Decided in #36.)
+  which publishes one `forecast.json` snapshot every 3 hours. The app reads that snapshot, and
+  falls back only to its IndexedDB copy, never to Open-Meteo. (Decided in #36, ADR-0010.)
 - NOAA DEM and Esri map tiles are still loaded by the browser, for now (#43).
 - Code ownership (#42):
   - `backend/`: the ingest and everything Open-Meteo (client, URLs, response types). AWS code
