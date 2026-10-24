@@ -5,7 +5,8 @@
   amended 2026-10-19 with the catalog fingerprint ([#26](https://github.com/jamesablue/glassy/pull/26),
   fixing [#23](https://github.com/jamesablue/glassy/issues/23)); amended 2026-10-19 to show a stale
   copy while it refreshes and to cache only complete forecasts
-  ([#32](https://github.com/jamesablue/glassy/issues/32))
+  ([#32](https://github.com/jamesablue/glassy/issues/32)); amended 2026-10-23 for the backend
+  snapshot ([ADR-0010](0010-backend-forecast-snapshot.md))
 - **Deciders:** James Blue
 
 ## Context and problem
@@ -62,6 +63,22 @@ forecast is written. Whatever the cache returns can then be drawn in full: a sav
 would leave the map without its layers for the cache's whole lifetime, and as a stale copy it could
 not stand in for a complete one.
 
+**With the snapshot** (amended for [ADR-0010](0010-backend-forecast-snapshot.md), built in
+[#40](https://github.com/jamesablue/glassy/issues/40)). The cache stays as it is, but what it
+falls back from changes:
+
+- A refresh fetches one `forecast.json` from our own CloudFront distribution, instead of four
+  Open-Meteo requests. The cache still stores the decoded bundle, with the same fingerprint check.
+- The order is fresh cache, then the snapshot, then the stale copy (up to `cacheMaxStaleMs`,
+  12 hours), then an error. **The stale copy is now the only fallback:** nothing ever calls
+  Open-Meteo directly.
+- A snapshot that is older than 7 hours, has an unknown `formatVersion` or was built for another
+  catalog counts as a failed refresh, the same as a network error.
+- A record's age is the snapshot's `fetchedAt`, when the ingest fetched the data, not when the
+  browser downloaded it. A snapshot is up to 3 hours old when it arrives.
+- The snapshot is one file, so the spot-then-grid split and `RateLimitedError` in the table above go
+  away in #40, and the "spot requests fail" row becomes "the snapshot fails".
+
 ## Consequences
 
 **Good**
@@ -83,8 +100,8 @@ not stand in for a complete one.
 
 **Bad**
 
-- The cache is per browser: a first visit always fetches, and visitors share nothing
-  (see [#17](https://github.com/jamesablue/glassy/issues/17) for a shared proxy).
+- The cache is per browser: a first visit always fetches, and visitors share nothing. (Since
+  [ADR-0010](0010-backend-forecast-snapshot.md), what a first visit fetches is the shared snapshot.)
 - Stale data can be up to 12 hours old. The UI says how old, but the conditions may have changed.
   It is now also what a returning visitor sees first, for as long as the refresh takes (at most
   25 s, the request timeout).

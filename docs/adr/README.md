@@ -3,17 +3,18 @@
 Each record explains one decision: the context, the drivers, the options considered, what was
 chosen and what it costs. They follow the [MADR](https://adr.github.io/madr/) layout.
 
-| ADR                                                 | Decision                                                                     | Status   | Date       |
-| --------------------------------------------------- | ---------------------------------------------------------------------------- | -------- | ---------- |
-| [0001](0001-static-spa-no-backend.md)               | A static SPA with no backend                                                 | Accepted | 2026-10-18 |
-| [0002](0002-leaflet-with-canvas-renderers.md)       | Leaflet with custom canvas renderers, over MapLibre GL and ngx-leaflet       | Accepted | 2026-10-19 |
-| [0003](0003-signal-stores-over-ngrx.md)             | Signal stores instead of NgRx                                                | Accepted | 2026-10-18 |
-| [0004](0004-heuristic-surf-and-snorkel-score.md)    | A heuristic surf estimate and snorkel score, not Surfline data               | Accepted | 2026-10-18 |
-| [0005](0005-indexeddb-forecast-cache.md)            | An IndexedDB forecast cache with a stale fallback and a catalog fingerprint  | Accepted | 2026-10-18 |
-| [0006](0006-vitest-playwright-recorded-fixtures.md) | Vitest and Playwright on recorded fixtures, visual regression in a container | Accepted | 2026-10-18 |
-| [0007](0007-dual-hosting-pages-and-aws.md)          | Dual hosting: GitHub Pages and AWS S3 + CloudFront through the CDK           | Accepted | 2026-10-18 |
-| [0008](0008-url-state-without-the-router.md)        | URL state without the Angular router                                         | Accepted | 2026-10-19 |
-| [0009](0009-native-popover-api.md)                  | The native Popover API instead of CDK Overlay                                | Accepted | 2026-10-19 |
+| ADR                                                 | Decision                                                                     | Status             | Date       |
+| --------------------------------------------------- | ---------------------------------------------------------------------------- | ------------------ | ---------- |
+| [0001](0001-static-spa-no-backend.md)               | A static SPA with no backend                                                 | Superseded by 0010 | 2026-10-18 |
+| [0002](0002-leaflet-with-canvas-renderers.md)       | Leaflet with custom canvas renderers, over MapLibre GL and ngx-leaflet       | Accepted           | 2026-10-19 |
+| [0003](0003-signal-stores-over-ngrx.md)             | Signal stores instead of NgRx                                                | Accepted           | 2026-10-18 |
+| [0004](0004-heuristic-surf-and-snorkel-score.md)    | A heuristic surf estimate and snorkel score, not Surfline data               | Accepted           | 2026-10-18 |
+| [0005](0005-indexeddb-forecast-cache.md)            | An IndexedDB forecast cache with a stale fallback and a catalog fingerprint  | Accepted           | 2026-10-18 |
+| [0006](0006-vitest-playwright-recorded-fixtures.md) | Vitest and Playwright on recorded fixtures, visual regression in a container | Accepted           | 2026-10-18 |
+| [0007](0007-dual-hosting-pages-and-aws.md)          | Dual hosting: GitHub Pages and AWS S3 + CloudFront through the CDK           | Accepted           | 2026-10-18 |
+| [0008](0008-url-state-without-the-router.md)        | URL state without the Angular router                                         | Accepted           | 2026-10-19 |
+| [0009](0009-native-popover-api.md)                  | The native Popover API instead of CDK Overlay                                | Accepted           | 2026-10-19 |
+| [0010](0010-backend-forecast-snapshot.md)           | A backend forecast snapshot; the browser makes no weather API calls          | Accepted           | 2026-10-23 |
 
 ## Writing a new one
 
