@@ -15,6 +15,7 @@ chosen and what it costs. They follow the [MADR](https://adr.github.io/madr/) la
 | [0008](0008-url-state-without-the-router.md)        | URL state without the Angular router                                         | Accepted           | 2026-10-19 |
 | [0009](0009-native-popover-api.md)                  | The native Popover API instead of CDK Overlay                                | Accepted           | 2026-10-19 |
 | [0010](0010-backend-forecast-snapshot.md)           | A backend forecast snapshot; the browser makes no weather API calls          | Accepted           | 2026-10-23 |
+| [0011](0011-snapshot-encoding.md)                   | The snapshot's encoding: lossless delta JSON                                 | Accepted           | 2026-10-23 |
 
 ## Writing a new one
 

@@ -1,8 +1,10 @@
 import {
   catalogFingerprint,
+  decodeSeries,
   OPEN_METEO_SOURCE,
   parseSnapshot,
   SNAPSHOT_FORMAT_VERSION,
+  type EncodedSeries,
   type GridSpec,
 } from '@glassy/shared';
 import {
@@ -28,6 +30,11 @@ describe('buildSnapshot', () => {
   const target = { spots, grid, fetchedAt };
   const start = 1_800_000_000;
   const times = hourlyTimes(start, 4);
+
+  /** A series back in hour-major order, `NaN` where missing. */
+  function hourly(series: EncodedSeries, locationCount: number): number[] {
+    return Array.from(decodeSeries(series, locationCount));
+  }
 
   function responses(
     overrides: Partial<OpenMeteoForecastResponses> = {},
@@ -55,22 +62,41 @@ describe('buildSnapshot', () => {
     expect(parseSnapshot(JSON.parse(JSON.stringify(snapshot)), { spots, grid })).toEqual(snapshot);
   });
 
-  it('stores each spot series hour by hour, in catalog order, under its domain name', () => {
+  it('stores each spot series in catalog order, under its domain name', () => {
     const { series } = buildSnapshot(responses(), target).spots;
     const seaLevel = SPOT_MARINE_VARS.indexOf('sea_level_height_msl');
     const gusts = SPOT_WEATHER_VARS.indexOf('wind_gusts_10m');
-    // index = hour * spotCount + spot
-    expect(series.seaLevel[2 * 2 + 1]).toBe(valueCode(seaLevel, 1, 2));
-    expect(series.windGust[3 * 2 + 0]).toBe(valueCode(gusts, 0, 3));
-    expect(series.isDay).toHaveLength(times.length * spots.length);
+    // decoded index = hour * spotCount + spot
+    expect(hourly(series.seaLevel, 2)[2 * 2 + 1]).toBe(valueCode(seaLevel, 1, 2));
+    expect(hourly(series.windGust, 2)[3 * 2 + 0]).toBe(valueCode(gusts, 0, 3));
+    expect(series.isDay.deltas).toHaveLength(times.length * spots.length);
   });
 
-  it('stores each grid field hour by hour, in field order', () => {
+  it('stores each grid field in field order', () => {
     const { fields } = buildSnapshot(responses(), target).grid;
     const swellPeriod = GRID_MARINE_VARS.indexOf('swell_wave_period');
     const windDirection = GRID_WIND_VARS.indexOf('wind_direction_10m');
-    expect(fields.swellPeriod[1 * 3 + 2]).toBe(valueCode(swellPeriod, 2, 1));
-    expect(fields.windDirection[0 * 3 + 1]).toBe(valueCode(windDirection, 1, 0));
+    expect(hourly(fields.swellPeriod, 3)[1 * 3 + 2]).toBe(valueCode(swellPeriod, 2, 1));
+    expect(hourly(fields.windDirection, 3)[0 * 3 + 1]).toBe(valueCode(windDirection, 1, 0));
+  });
+
+  it('stores each location as a run of hourly changes, with the decimals Open-Meteo sends', () => {
+    const { spots: spotSeries, grid: gridSeries } = buildSnapshot(
+      responses({
+        spotMarine: [
+          openMeteoLocation({ time: times, sea_level_height_msl: [0.42, 0.45, 0.45, null] }),
+          openMeteoLocation({ time: times, sea_level_height_msl: [-0.1, -0.12, -0.15, -0.1] }, 1),
+        ],
+      }),
+      target,
+    );
+    expect(spotSeries.series.seaLevel).toEqual({
+      decimals: 2,
+      deltas: [42, 3, 0, null, -10, -2, -3, 5],
+    });
+    expect(spotSeries.series.isDay.decimals).toBe(0);
+    expect(gridSeries.fields.windSpeed.decimals).toBe(2);
+    expect(gridSeries.fields.windDirection.decimals).toBe(0);
   });
 
   it('cuts every series to the hours all four responses share', () => {
@@ -82,9 +108,9 @@ describe('buildSnapshot', () => {
     expect(snapshot.times).toEqual(times.slice(1));
     const height = SPOT_MARINE_VARS.indexOf('swell_wave_height');
     // The first shared hour is the marine response's second hour.
-    expect(snapshot.spots.series.swellHeight[0]).toBe(valueCode(height, 0, 1));
-    expect(snapshot.spots.series.windSpeed[0]).toBe(valueCode(0, 0, 0));
-    expect(snapshot.grid.fields.waveHeight).toHaveLength(3 * 3);
+    expect(hourly(snapshot.spots.series.swellHeight, 2)[0]).toBe(valueCode(height, 0, 1));
+    expect(hourly(snapshot.spots.series.windSpeed, 2)[0]).toBe(valueCode(0, 0, 0));
+    expect(snapshot.grid.fields.waveHeight.deltas).toHaveLength(3 * 3);
   });
 
   it('stores null for missing values and variables', () => {
@@ -98,13 +124,13 @@ describe('buildSnapshot', () => {
       }),
       target,
     );
-    expect(snapshot.spots.series.windGust.slice(0, 2)).toEqual([null, valueCode(2, 1, 0)]);
-    expect(snapshot.spots.series.isDay.filter((_, index) => index % 2 === 1)).toEqual([
-      null,
-      null,
-      null,
-      null,
+    expect(snapshot.spots.series.windGust.deltas[0]).toBeNull();
+    expect(hourly(snapshot.spots.series.windGust, 2).slice(0, 2)).toEqual([
+      NaN,
+      valueCode(2, 1, 0),
     ]);
+    // The second spot's run is its four hours, all missing.
+    expect(snapshot.spots.series.isDay.deltas.slice(4)).toEqual([null, null, null, null]);
   });
 
   it('accepts the bare object Open-Meteo sends for a single location', () => {
@@ -115,7 +141,7 @@ describe('buildSnapshot', () => {
       ...target,
       spots: one,
     });
-    expect(snapshot.spots.series.swellHeight).toHaveLength(times.length);
+    expect(snapshot.spots.series.swellHeight.deltas).toHaveLength(times.length);
   });
 
   it.each([

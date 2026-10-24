@@ -1,5 +1,6 @@
 import { catalogFingerprint } from './catalog-fingerprint';
 import type { GridSpec } from './grid';
+import { encodeSeries, type EncodedSeries } from './series-codec';
 import {
   OPEN_METEO_SOURCE,
   parseSnapshot,
@@ -16,8 +17,11 @@ interface SnapshotJson {
   [key: string]: unknown;
   source: Record<string, unknown>;
   times: number[];
-  spots: { ids: string[]; series: Record<string, unknown[]> };
-  grid: { spec: Record<string, unknown>; fields: Record<string, unknown[]> };
+  spots: { ids: string[]; series: Record<string, { decimals: unknown; deltas: unknown[] }> };
+  grid: {
+    spec: Record<string, unknown>;
+    fields: Record<string, { decimals: unknown; deltas: unknown[] }>;
+  };
 }
 
 describe('parseSnapshot', () => {
@@ -35,16 +39,15 @@ describe('parseSnapshot', () => {
       times,
       spots: {
         ids: spots.map((spot) => spot.id),
-        series: Object.fromEntries(SPOT_VARIABLES.map((name) => [name, [1, 2, null, 4]])) as Record<
-          SpotVariable,
-          (number | null)[]
-        >,
+        series: Object.fromEntries(
+          SPOT_VARIABLES.map((name) => [name, encodeSeries([1, 2, null, 4], spots.length, 1)]),
+        ) as Record<SpotVariable, EncodedSeries>,
       },
       grid: {
         spec: grid,
         fields: Object.fromEntries(
-          GRID_VARIABLES.map((name) => [name, [1, 2, 3, 4, 5, null]]),
-        ) as Record<GridVariable, (number | null)[]>,
+          GRID_VARIABLES.map((name) => [name, encodeSeries([1, 2, 3, 4, 5, null], 3, 2)]),
+        ) as Record<GridVariable, EncodedSeries>,
       },
     };
   }
@@ -109,12 +112,25 @@ describe('parseSnapshot', () => {
       'a missing spot series',
       () => changed((json) => Reflect.deleteProperty(json.spots.series, 'isDay')),
     ],
-    ['a short spot series', () => changed((json) => json.spots.series['seaLevel']?.pop())],
-    ['a short grid field', () => changed((json) => json.grid.fields['windSpeed']?.pop())],
+    [
+      'a series that is a bare list',
+      () => changed((json) => (json.spots.series['seaLevel'] = [1, 2, 3, 4] as never)),
+    ],
+    ['a short spot series', () => changed((json) => json.spots.series['seaLevel']?.deltas.pop())],
+    ['a short grid field', () => changed((json) => json.grid.fields['windSpeed']?.deltas.pop())],
     [
       'text in a series',
-      () => changed((json) => json.grid.fields['swellPeriod']?.splice(0, 1, 'x')),
+      () => changed((json) => json.grid.fields['swellPeriod']?.deltas.splice(0, 1, 'x')),
     ],
+    [
+      'a fraction in a series',
+      () => changed((json) => json.grid.fields['swellPeriod']?.deltas.splice(0, 1, 1.5)),
+    ],
+    [
+      'no decimals',
+      () => changed((json) => Reflect.deleteProperty(json.grid.fields['waveHeight']!, 'decimals')),
+    ],
+    ['too many decimals', () => changed((json) => (json.spots.series['isDay']!.decimals = 7))],
   ])('refuses a snapshot with %s as malformed', (_, json) => {
     expect(codeOf(json())).toBe('malformed');
   });

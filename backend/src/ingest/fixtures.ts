@@ -12,6 +12,14 @@ export const RECORDED_FIXTURES_DIR = fileURLToPath(
   new URL('../../../src/testing/fixtures/raw/', import.meta.url),
 );
 
+/**
+ * The snapshot built from those responses, committed for the app's decoder test, which may not
+ * import the backend. Regenerate it with `npm run snapshot:fixtures -- --out <this path>`.
+ */
+export const SNAPSHOT_FIXTURE_PATH = fileURLToPath(
+  new URL('../../../src/testing/fixtures/forecast-snapshot.json', import.meta.url),
+);
+
 /** The parts of `manifest.json` read here. */
 interface Manifest {
   readonly recordedAt: string;

@@ -18,7 +18,8 @@ backend/src/
   write-snapshot.ts       validates with the app's parseSnapshot, then writes atomically (Node only)
   ingest/
     ingest.ts             the four requests in parallel, all or nothing
-    build-snapshot.ts     four responses → ForecastSnapshot, in the domain's variable names
+    build-snapshot.ts     four responses → ForecastSnapshot, in the domain's variable names, each
+                          series encoded with the decimal places Open-Meteo sends
     fixtures.ts           the same snapshot from the recorded fixtures, with no network
     settings.ts           DEFAULT_INGEST_SETTINGS: URLs, grid, catalog, days, time zone, retries
   open-meteo/
@@ -29,8 +30,9 @@ backend/src/
   testing/builders.ts     test builders
 ```
 
-The snapshot's types, format version and validation, the grid and the spot catalog are in
-[`shared/`](../shared/README.md), which the app also uses. Nothing else is shared: `backend/` may not
+The snapshot's types, format version, encoding and validation, the grid and the spot catalog are in
+[`shared/`](../shared/README.md), which the app also uses. A five-day snapshot is about 550 kB, and
+about 100 kB compressed ([ADR-0011](../docs/adr/0011-snapshot-encoding.md)). Nothing else is shared: `backend/` may not
 import from `src/`, and the app may not import from `backend/` (ESLint enforces both).
 
 Until #40 switches the app to the snapshot, the app keeps its own copy of the Open-Meteo client,
