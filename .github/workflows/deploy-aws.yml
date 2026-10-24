@@ -121,10 +121,13 @@ jobs:
 
       # 2. Files copied from public/ (favicon and friends). They keep their
       #    names between builds, so they get a short lifetime instead.
+      #    forecast.json is not part of the build: the ingest Lambda writes it
+      #    every 3 hours. Without the exclude, --delete would remove it.
       - name: Upload static files
         run: >-
           aws s3 sync "$BUILD_DIR" "s3://$S3_BUCKET"
           --delete
+          --exclude forecast.json
           --exclude index.html
           --exclude "*.js"
           --exclude "*.css"
