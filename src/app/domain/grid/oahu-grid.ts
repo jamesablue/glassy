@@ -1,10 +1,2 @@
-import type { GridSpec } from '../models';
-
-/** The 1/8° forecast grid around Oahu: 11 rows × 15 columns, from 20.875°N 158.875°W. */
-export const OAHU_GRID: GridSpec = {
-  lat0: 20.875,
-  lon0: -158.875,
-  step: 0.125,
-  rows: 11,
-  cols: 15,
-};
+// The grid is part of the snapshot contract, so it lives in shared/ at the repository root.
+export { OAHU_GRID } from '@glassy/shared';

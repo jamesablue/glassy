@@ -84,6 +84,28 @@ updates:
           - 'constructs'
           - 'cdk-nag'
 
+  # The forecast ingest in backend/, a package of its own.
+  - package-ecosystem: npm
+    directory: /backend
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: chore
+      include: scope
+    labels: [area:backend]
+    ignore:
+      # Kept on the root's TypeScript, which also type checks this code (scripts/, the app).
+      - dependency-name: typescript
+        update-types: [version-update:semver-major, version-update:semver-minor]
+      - dependency-name: '@types/node'
+        update-types: [version-update:semver-major]
+    groups:
+      dev-tooling:
+        patterns:
+          - '*'
+
   # Workflow actions. Dependabot keeps the SHA pins and their version comments in step.
   - package-ecosystem: github-actions
     directory: /

@@ -1,6 +1,4 @@
-import type { GridSpec } from '../models';
-import { gridCellCenters } from './grid-cells';
-import { OAHU_GRID } from './oahu-grid';
+import { gridCellCenters, OAHU_GRID, sameGrid, type GridSpec } from './grid';
 
 describe('gridCellCenters', () => {
   const grid: GridSpec = { lat0: 21, lon0: -158, step: 0.5, rows: 2, cols: 3 };
@@ -22,5 +20,14 @@ describe('gridCellCenters', () => {
     // Row 2, column 3 of the Oahu grid.
     expect(cells[2 * OAHU_GRID.cols + 3]).toEqual({ lat: 21.125, lon: -158.5 });
     expect(cells.at(-1)).toEqual({ lat: 22.125, lon: -157.125 });
+  });
+});
+
+describe('sameGrid', () => {
+  it('compares every field', () => {
+    expect(sameGrid(OAHU_GRID, { ...OAHU_GRID })).toBe(true);
+    for (const field of ['lat0', 'lon0', 'step', 'rows', 'cols'] as const) {
+      expect(sameGrid(OAHU_GRID, { ...OAHU_GRID, [field]: OAHU_GRID[field] + 1 })).toBe(false);
+    }
   });
 });

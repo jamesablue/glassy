@@ -48,5 +48,8 @@ test-results/
 /blob-report/
 /playwright/.cache/
 
+# Forecast snapshots written by `npm run ingest` and `npm run snapshot:fixtures`, served by `npm start`
+/.local/
+
 # Local reference copy of the original prototype (never committed)
 prototype/

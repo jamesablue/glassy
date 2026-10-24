@@ -1,6 +1,6 @@
 # Every check is its own job, so they run side by side:
 #
-# - Quality, Unit tests, Build, Infrastructure (CDK) and Lint workflows start at once.
+# - Quality, Unit tests, Build, Backend, Infrastructure (CDK) and Lint workflows start at once.
 # - E2E shard 1/2, E2E shard 2/2 and E2E visual test the app Build made.
 # - E2E merges their reports into one, and passes only when all three passed.
 #
@@ -361,6 +361,47 @@ jobs:
       # finding that has not been acknowledged.
       - name: Synthesize
         run: npm run synth
+
+  # The forecast ingest in backend/ and the snapshot contract in shared/. Their lint and format run
+  # in the Quality job, with the app's.
+  backend:
+    name: Backend
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        id: install
+        run: npm ci
+
+      - name: Type check (backend, shared)
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: npm run typecheck
+
+      - name: Unit tests (backend, shared)
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: npm test
+
+      # The command the end-to-end tests and local development use, with no network.
+      - name: Build a snapshot from the recorded fixtures
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: npm run snapshot:fixtures -- --out "$RUNNER_TEMP/forecast.json"
 
   # Checks every workflow, including the ones that only run by hand (deploy-aws.yml) or on a
   # schedule, and the shell in them (shellcheck), instead of finding mistakes on their first run.

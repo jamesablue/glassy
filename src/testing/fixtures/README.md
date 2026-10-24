@@ -26,6 +26,10 @@ configuration or the spot catalog changes and the fixtures need recording again.
 
 To mock the network, serve each file for the URL listed next to it in `manifest.json`.
 
+The backend reads the same files: its URL test checks the ingest's requests against `manifest.json`, and
+`npm run snapshot:fixtures` (`backend/src/ingest/fixtures.ts`) builds a `forecast.json` snapshot from them with
+no network, dated to `recordedAt`.
+
 ## Refreshing
 
 ```sh

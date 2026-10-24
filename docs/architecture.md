@@ -59,6 +59,20 @@ flowchart TB
 The production Content-Security-Policy allows exactly these hosts
 ([`infra/lib/content-security-policy.ts`](../infra/lib/content-security-policy.ts)).
 
+### Packages in the repository
+
+[ADR-0010](adr/0010-backend-forecast-snapshot.md) moves the Open-Meteo requests out of the browser.
+The diagram above shows the app as it still works today; #40 switches it to the snapshot.
+
+| Folder     | What it is                                                                                            |
+| ---------- | ----------------------------------------------------------------------------------------------------- |
+| `src/`     | The app, scoring included. It may not import from `backend/`.                                         |
+| `backend/` | The forecast ingest: everything Open-Meteo, building `forecast.json` ([README](../backend/README.md)) |
+| `shared/`  | The snapshot contract both use, imported as `@glassy/shared` ([README](../shared/README.md))          |
+| `infra/`   | The AWS CDK stack                                                                                     |
+
+ESLint enforces the boundaries between them, next to the layer rules below.
+
 ## Layers and dependency rules
 
 `src/app/` is split into seven layers. ESLint (`eslint.config.js`) fails the build when a file

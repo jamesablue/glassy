@@ -2,9 +2,9 @@
  * Records every test fixture from one run against the live APIs, so they all describe the same
  * forecast:
  *
- * - `src/testing/fixtures/raw/`: the four Open-Meteo responses exactly as the app requests them
- *   (same URLs, built by `forecastRequestUrls`) and three NOAA `identify` responses, plus a
- *   manifest with the URLs and recording time. Each Open-Meteo response is cut to the first
+ * - `src/testing/fixtures/raw/`: the four Open-Meteo responses exactly as the ingest requests them
+ *   (same URLs, built by `forecastRequestUrls` in backend/; until #40 the app requests the same
+ *   ones) and three NOAA `identify` responses, plus a manifest with the URLs and recording time. Each Open-Meteo response is cut to the first
  *   48 hours the four share. The data layer's tests read these files and the end-to-end tests
  *   serve them as network mocks.
  * - `src/testing/fixtures/spot-forecast.fixture.json`: the per-spot series in the domain's own
@@ -17,18 +17,12 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { format, resolveConfig } from 'prettier';
+import { OAHU_SPOTS, type LatLon, type SpotVariable } from '@glassy/shared';
+import { DEFAULT_INGEST_SETTINGS } from '../backend/src/ingest/settings';
+import type { OpenMeteoLocation, OpenMeteoResponse } from '../backend/src/open-meteo/types';
+import { forecastRequestUrls, type ForecastRequestId } from '../backend/src/open-meteo/urls';
 import { DEFAULT_GLASSY_CONFIG } from '../src/app/core/glassy-config';
 import { identifyUrl } from '../src/app/data/noaa/identify';
-import type {
-  OpenMeteoLocation,
-  OpenMeteoResponse,
-} from '../src/app/data/open-meteo/open-meteo.types';
-import {
-  forecastRequestUrls,
-  type ForecastRequestId,
-} from '../src/app/data/open-meteo/open-meteo.urls';
-import type { LatLon, SpotVariable } from '../src/app/domain/models';
-import { OAHU_SPOTS } from '../src/app/domain/spots/oahu.spots';
 
 const RECORDED_HOURS = 48;
 const FIXTURES_DIR = new URL('../src/testing/fixtures/', import.meta.url);
@@ -141,7 +135,7 @@ async function writeJson(
 }
 
 async function main(): Promise<void> {
-  const urls = forecastRequestUrls(DEFAULT_GLASSY_CONFIG, OAHU_SPOTS);
+  const urls = forecastRequestUrls(DEFAULT_INGEST_SETTINGS, OAHU_SPOTS);
   const fetched = await Promise.all(
     REQUEST_IDS.map(async (id) => [id, (await fetchJson(urls[id])) as Response] as const),
   );

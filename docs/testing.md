@@ -15,6 +15,7 @@ flowchart BT
   e2e --> a11y
   e2e --> visual
   infra["Infrastructure · Vitest + CDK assertions<br/>the AWS stack, its headers and cdk-nag"]
+  backend["Backend · Vitest in Node<br/>the ingest and the snapshot contract"]
 ```
 
 | Level          | Tool                              | Where                                           | Run with                                 |
@@ -24,6 +25,7 @@ flowchart BT
 | End-to-end     | Playwright (Chromium)             | `e2e/*.spec.ts`                                 | `npm run e2e`                            |
 | Accessibility  | axe-core in Playwright            | `e2e/a11y.spec.ts`                              | `npm run e2e`                            |
 | Visual         | Playwright `toHaveScreenshot`     | `e2e/visual.spec.ts`                            | `npm run e2e:visual` (Docker)            |
+| Backend        | Vitest (Node)                     | `backend/src/**/*.spec.ts`, `shared/*.spec.ts`  | `cd backend && npm test`                 |
 | Infrastructure | Vitest, CDK `Template` assertions | `infra/test/`                                   | `cd infra && npm test`                   |
 
 ## Unit and component tests
@@ -138,6 +140,16 @@ runs the comparison there through Docker, and `npm run e2e:visual:update` takes 
 CI uses the same image. A manual **Update screenshots** workflow takes new baselines on GitHub for
 anyone without Docker.
 
+## Backend tests
+
+The forecast ingest in `backend/` and the snapshot contract in `shared/` have their own Vitest
+suite, run in Node (`backend/vitest.config.mts`). It needs no network: `fetch` is faked, and the
+recorded fixtures are read as files. It covers the request URLs and their weighted call count, the
+retry and timeout rules, turning four responses into a snapshot, all-or-nothing writes (one failed
+request leaves the previous `forecast.json` in place), and `parseSnapshot`'s refusals. A snapshot
+built from the recording must hold exactly the spot series in `spot-forecast.fixture.json`, which
+the recorder unpacked on its own. See [backend/README.md](../backend/README.md).
+
 ## Infrastructure tests
 
 The AWS CDK app in `infra/` has its own Vitest suite. It asserts on the synthesized CloudFormation:
@@ -160,6 +172,7 @@ flowchart LR
   shard2["E2E shard 2/2"]
   visual["E2E visual<br/>Playwright image"]
   report["E2E<br/>merged report"]
+  backend["Backend<br/>typecheck · tests · fixture snapshot"]
   infra["Infrastructure (CDK)<br/>tests · synth"]
   actionlint["Lint workflows<br/>actionlint"]
   build -- dist/ --> shard1 & shard2 & visual
@@ -168,12 +181,13 @@ flowchart LR
 
 | Job                    | What fails it                                                            | What it leaves                              |
 | ---------------------- | ------------------------------------------------------------------------ | ------------------------------------------- |
-| `Quality`              | Prettier, ESLint (including layer boundaries) or TypeScript              |                                             |
+| `Quality`              | Prettier, ESLint (layer and package boundaries) or TypeScript            |                                             |
 | `Unit tests`           | A failing test or a layer below its coverage floor                       | Coverage table in the summary; HTML report  |
 | `Build`                | A build error or a bundle over budget (`angular.json`)                   | Chunk sizes in the summary; `dist/`         |
 | `E2E shard 1/2`, `2/2` | A failing end-to-end or axe test, after one retry                        | Blob report (trace on the retry)            |
 | `E2E visual`           | A screenshot more than 1% different                                      | Blob report with expected, actual and diff  |
 | `E2E`                  | Any of the three jobs above                                              | One merged HTML report: `playwright-report` |
+| `Backend`              | TypeScript, a failing backend or `shared/` test, or the fixture snapshot |                                             |
 | `Infrastructure (CDK)` | Prettier, a failing stack test, or synth (type errors, cdk-nag findings) |                                             |
 | `Lint workflows`       | actionlint (and shellcheck) on every workflow, including manual ones     |                                             |
 

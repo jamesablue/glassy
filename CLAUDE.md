@@ -14,13 +14,15 @@ later. Start with `docs/architecture.md`, the ADRs in `docs/adr/`, and `CONTRIBU
 
 ## Commands
 
-| Task         | Command                                              |
-| ------------ | ---------------------------------------------------- |
-| Dev server   | `npm start`                                          |
-| Unit tests   | `npm test` (`npm run test:ci` for coverage)          |
-| Lint / types | `npm run lint`, `npm run typecheck`                  |
-| End-to-end   | `npm run e2e` (`npm run e2e:visual` for screenshots) |
-| Infra tests  | `npm test` in `infra/`                               |
+| Task         | Command                                                 |
+| ------------ | ------------------------------------------------------- |
+| Dev server   | `npm start`                                             |
+| Unit tests   | `npm test` (`npm run test:ci` for coverage)             |
+| Lint / types | `npm run lint`, `npm run typecheck`                     |
+| End-to-end   | `npm run e2e` (`npm run e2e:visual` for screenshots)    |
+| Backend      | `npm run typecheck`, `npm test` in `backend/`           |
+| Snapshot     | `npm run snapshot:fixtures` (offline), `npm run ingest` |
+| Infra tests  | `npm test` in `infra/`                                  |
 
 Run lint, typecheck, unit and e2e tests before saying a change is done. Node version is in `.nvmrc`.
 
