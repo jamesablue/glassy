@@ -3,9 +3,11 @@ import { mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { Mock } from 'vitest';
-import { readManifest, RECORDED_FIXTURES_DIR } from './ingest/fixtures';
+import { readManifest } from './ingest/fixtures';
 import { DEFAULT_INGEST_SETTINGS } from './ingest/settings';
+import type { ForecastRequestId } from './open-meteo/urls';
 import { run, type RunDeps } from './run';
+import { recordedNetwork as recordedNetworkDeps } from './testing/recorded-network';
 
 describe('run', () => {
   let dir: string;
@@ -19,29 +21,11 @@ describe('run', () => {
 
   afterEach(() => rm(dir, { recursive: true, force: true }));
 
-  /** Deps whose `fetch` answers the recorded URLs with the recorded bodies, except `failing`. */
+  /** The recorded network, plus a log to check. */
   async function recordedNetwork(
-    failing?: string,
-  ): Promise<RunDeps & { log: Mock<RunDeps['log']> }> {
-    const { openMeteo } = await readManifest();
-    const bodies = new Map<string, string>();
-    for (const [id, { file, url }] of Object.entries(openMeteo.requests)) {
-      bodies.set(
-        url,
-        id === failing ? '' : await readFile(join(RECORDED_FIXTURES_DIR, file), 'utf8'),
-      );
-    }
-    return {
-      fetch: vi.fn(async (input: string | URL | Request) => {
-        const body = bodies.get(String(input));
-        return body
-          ? new Response(body)
-          : new Response(JSON.stringify({ error: true, reason: 'Not recorded' }), { status: 503 });
-      }),
-      sleep: async () => undefined,
-      now: () => new Date('2027-01-15T08:00:00Z'),
-      log: vi.fn<RunDeps['log']>(),
-    };
+    failing?: ForecastRequestId,
+  ): Promise<RunDeps & { fetch: Mock<RunDeps['fetch']>; log: Mock<RunDeps['log']> }> {
+    return { ...(await recordedNetworkDeps(failing)), log: vi.fn<RunDeps['log']>() };
   }
 
   async function written(): Promise<unknown> {
