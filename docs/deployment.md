@@ -137,7 +137,9 @@ Outputs: `BucketName`, `DistributionId`, `DistributionDomainName`, `DeployRoleAr
 
 Done once, with administrator credentials ([details](../infra/README.md#first-deployment)):
 
-1. Bootstrap CDK in the account and region: `cd infra && npm ci && npx cdk bootstrap aws://<account-id>/us-east-1`.
+1. Install `backend/` (its esbuild bundles the ingest) and `infra/`, then bootstrap CDK in the
+   account and region:
+   `(cd backend && npm ci) && cd infra && npm ci && npx cdk bootstrap aws://<account-id>/us-east-1`.
 2. Deploy the stack: `npx cdk deploy -c alarmEmail=<you@example.com>` (add
    `-c createOidcProvider=false` if the account already has a GitHub OIDC provider), and confirm
    the subscription from the email AWS sends.

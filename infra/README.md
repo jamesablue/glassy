@@ -44,7 +44,9 @@ latest Node.js, and the alarm topic accepts only TLS.
 
 ## Commands
 
-Run from `infra/` with Node 24 (`nvm use` in the repository root).
+Run from `infra/` with Node 24 (`nvm use` in the repository root). Install `backend/` too
+(`npm ci` there): every synth, test and deploy bundles the ingest with its esbuild, and stops with
+a message if it is missing.
 
 | Command                | What it does                                              |
 | ---------------------- | --------------------------------------------------------- |
@@ -90,6 +92,7 @@ with the role this stack creates.
 ### 1. Bootstrap CDK (once per account and region)
 
 ```sh
+(cd backend && npm ci)
 cd infra
 npm ci
 npx cdk bootstrap aws://<account-id>/us-east-1

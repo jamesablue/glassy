@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { Duration, RemovalPolicy } from 'aws-cdk-lib';
 import { Alarm, ComparisonOperator, Stats, TreatMissingData } from 'aws-cdk-lib/aws-cloudwatch';
@@ -23,8 +24,8 @@ export const SNAPSHOT_KEY = 'forecast.json';
  */
 export const INGEST_SCHEDULE = Schedule.cron({ minute: '15', hour: '0/3' });
 
-/** The repository root, which holds backend/ and the shared/ code it imports. */
-const REPOSITORY_ROOT = join(__dirname, '..', '..', '..');
+/** The backend package, which holds the handler and the esbuild that bundles it. */
+const BACKEND_DIR = join(__dirname, '..', '..', '..', 'backend');
 
 export interface ForecastIngestProps {
   /** The site bucket. The function may write `forecast.json` in it, and nothing else. */
@@ -51,6 +52,14 @@ export class ForecastIngest extends Construct {
   constructor(scope: Construct, id: string, props: ForecastIngestProps) {
     super(scope, id);
 
+    // CDK runs `npx --no-install esbuild` in the project root, so it needs backend/'s install.
+    if (!existsSync(join(BACKEND_DIR, 'node_modules', 'esbuild', 'package.json'))) {
+      throw new Error(
+        'The forecast ingest is bundled with esbuild from backend/. Run `npm ci` in backend/ ' +
+          'before synthesizing or deploying. See infra/README.md.',
+      );
+    }
+
     this.logGroup = new LogGroup(this, 'Logs', {
       retention: RetentionDays.ONE_MONTH,
       removalPolicy: RemovalPolicy.DESTROY,
@@ -74,11 +83,11 @@ export class ForecastIngest extends Construct {
 
     this.function = new NodejsFunction(this, 'Function', {
       description: 'Fetches the Open-Meteo forecast and publishes forecast.json',
-      entry: join(REPOSITORY_ROOT, 'backend', 'src', 'lambda.ts'),
+      entry: join(BACKEND_DIR, 'src', 'lambda.ts'),
       handler: 'handler',
-      // The bundle takes in shared/ as well as backend/, so both must be under the project root.
-      projectRoot: REPOSITORY_ROOT,
-      depsLockFilePath: join(REPOSITORY_ROOT, 'backend', 'package-lock.json'),
+      // esbuild runs here, and reads ../shared through the tsconfig's @glassy/shared alias.
+      projectRoot: BACKEND_DIR,
+      depsLockFilePath: join(BACKEND_DIR, 'package-lock.json'),
       runtime: Runtime.NODEJS_24_X,
       architecture: Architecture.ARM_64,
       memorySize: 512,
@@ -97,7 +106,7 @@ export class ForecastIngest extends Construct {
       bundling: {
         format: OutputFormat.ESM,
         // Resolves the @glassy/shared path alias.
-        tsconfig: join(REPOSITORY_ROOT, 'backend', 'tsconfig.json'),
+        tsconfig: join(BACKEND_DIR, 'tsconfig.json'),
         minify: true,
         sourceMap: true,
         // The Node 24 runtime provides AWS SDK v3, so it stays out of the bundle (the default).
