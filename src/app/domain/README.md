@@ -20,8 +20,12 @@ Pure TypeScript: the snorkel scoring model and everything it needs.
 Each folder has an `index.ts` that exports its public API. Types shared across folders live in `models/`; a
 result type that belongs to one function (for example `BestWindow` or `LegendSpec`) sits next to it.
 
-**May import:** nothing outside `domain/`. No `@angular/*`, `rxjs`, `leaflet`, browser APIs or other layers.
-ESLint enforces this.
+**May import:** nothing outside `domain/`, except the snapshot contract `@glassy/shared` (`shared/` at the
+repository root). No `@angular/*`, `rxjs`, `leaflet`, browser APIs or other layers. ESLint enforces this.
+
+`Spot`, the Oahu catalog, `GridSpec`, `OAHU_GRID`, `gridCellCenters`, `LatLon` and `SPOT_VARIABLES` are part of
+that contract, because the backend ingest uses them too. They are defined in `shared/` and re-exported here
+(`models/`, `spots/`, `grid/`), so the rest of the app imports them from `domain/` as before.
 
 **Why:** everything here is deterministic and runs in plain Node, so it is fast to test and easy to reuse
 (for example in a Web Worker).

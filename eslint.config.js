@@ -20,6 +20,16 @@ const LAYER_IMPORTS = {
 };
 const LAYERS = Object.keys(LAYER_IMPORTS);
 
+/** The snapshot contract in shared/ at the repository root, imported through a tsconfig alias. */
+const SHARED_CONTRACT = '@glassy/shared';
+
+/** The app may not import the backend ingest (ADR-0010). Part of every rule for src/. */
+const noBackendImports = {
+  // Any relative import that climbs out into backend/.
+  regex: '^(?:\\.\\./)+backend(?:/|$)',
+  message: `The app may not import from backend/ (ADR-0010). Contract code lives in shared/ (${SHARED_CONTRACT}).`,
+};
+
 /**
  * The import patterns a layer may not use.
  * @param {keyof typeof LAYER_IMPORTS} layer
@@ -38,12 +48,14 @@ function layerPatterns(layer) {
       regex: `^\\.{1,2}/(?:.*/)?(?:${forbidden.join('|')})(?:/|$)`,
       message: `${rule} See src/app/${layer}/README.md.`,
     },
+    noBackendImports,
   ];
 
   if (layer === 'domain') {
     patterns.push({
-      // Bare module specifiers: @angular/*, rxjs, leaflet and every other package.
-      regex: '^(?!\\.{1,2}/|vitest$)',
+      // Bare module specifiers: @angular/*, rxjs, leaflet and every other package. The snapshot
+      // contract is plain TypeScript too.
+      regex: `^(?!\\.{1,2}/|vitest$|${SHARED_CONTRACT}$)`,
       message:
         'domain/ is plain TypeScript with no dependencies (no @angular/*, rxjs, leaflet or other packages).',
     });
@@ -111,6 +123,62 @@ const e2eSharedFixture = {
   },
 };
 
+/**
+ * Code ownership between the app, the backend ingest and the snapshot contract (ADR-0010, #42).
+ * shared/ is the only code both sides use. It is a flat folder, so allowing only `./` imports keeps
+ * it free of packages, Node built-ins, and app or backend code.
+ */
+const packageBoundaries = [
+  {
+    name: 'glassy/package-boundary/shared',
+    files: ['shared/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              regex: '^(?!\\./)',
+              message:
+                'shared/ is the snapshot contract: it imports only from shared/ itself (no packages, node:, app or backend code). See shared/README.md.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    name: 'glassy/package-boundary/backend',
+    files: ['backend/**/*.ts', 'backend/**/*.mts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              // Any relative import that climbs out into the app's src/.
+              regex: '^(?:\\.\\./)+src(?:/|$)',
+              message: `backend/ may not import from src/. Contract code lives in shared/ (${SHARED_CONTRACT}).`,
+            },
+            {
+              regex: '^(?:@angular/|rxjs(?:/|$)|leaflet$)',
+              message: 'backend/ runs in Node, without Angular, RxJS or Leaflet.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    // The layer boundaries replace this for src/app/<layer>/, and include the same pattern.
+    name: 'glassy/package-boundary/app',
+    files: ['src/**/*.ts'],
+    rules: {
+      'no-restricted-imports': ['error', { patterns: [noBackendImports] }],
+    },
+  },
+];
+
 module.exports = defineConfig([
   globalIgnores([
     'dist/',
@@ -155,6 +223,7 @@ module.exports = defineConfig([
     extends: [angular.configs.templateRecommended, angular.configs.templateAccessibility],
     rules: {},
   },
+  ...packageBoundaries,
   ...LAYERS.map((layer) => layerBoundary(/** @type {keyof typeof LAYER_IMPORTS} */ (layer))),
   // After the layer boundaries: for these files it replaces the map's rule with a stricter one.
   frameworkFreeRenderers,

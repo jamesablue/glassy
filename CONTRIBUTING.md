@@ -18,23 +18,29 @@ you stage.
 
 ## Scripts
 
-| Script                      | What it does                                                    |
-| --------------------------- | --------------------------------------------------------------- |
-| `npm start`                 | Dev server                                                      |
-| `npm run build`             | Production build, checked against the bundle budgets            |
-| `npm test`                  | Unit and component tests (Vitest), single run                   |
-| `npm run test:ci`           | The same with coverage, failing below each layer's floor        |
-| `npm run lint`              | ESLint, including the layer import boundaries                   |
-| `npm run typecheck`         | TypeScript for the app, unit tests, e2e tests and scripts       |
-| `npm run format:check`      | Prettier check (`npm run format` fixes)                         |
-| `npm run e2e`               | Playwright end-to-end tests against the dev server              |
-| `npm run e2e:visual`        | Screenshot comparisons, in the Playwright Linux image (Docker)  |
-| `npm run e2e:visual:update` | Takes new screenshot baselines the same way                     |
-| `npm run fixtures:record`   | Records the forecast fixtures again from the live APIs          |
-| `npm run fixtures:expected` | Scores the recorded fixtures with the original prototype's code |
-| `npm run docs:screenshots`  | Builds the app and captures the README images in `docs/images/` |
+| Script                      | What it does                                                                       |
+| --------------------------- | ---------------------------------------------------------------------------------- |
+| `npm start`                 | Dev server                                                                         |
+| `npm run build`             | Production build, checked against the bundle budgets                               |
+| `npm test`                  | Unit and component tests (Vitest), single run                                      |
+| `npm run test:ci`           | The same with coverage, failing below each layer's floor                           |
+| `npm run lint`              | ESLint, including the layer import boundaries                                      |
+| `npm run typecheck`         | TypeScript for the app, unit tests, e2e tests and scripts                          |
+| `npm run format:check`      | Prettier check (`npm run format` fixes)                                            |
+| `npm run e2e`               | Playwright end-to-end tests against the dev server                                 |
+| `npm run e2e:visual`        | Screenshot comparisons, in the Playwright Linux image (Docker)                     |
+| `npm run e2e:visual:update` | Takes new screenshot baselines the same way                                        |
+| `npm run fixtures:record`   | Records the forecast fixtures again from the live APIs                             |
+| `npm run fixtures:expected` | Scores the recorded fixtures with the original prototype's code                    |
+| `npm run docs:screenshots`  | Builds the app and captures the README images in `docs/images/`                    |
+| `npm run snapshot:fixtures` | Builds `.local/forecast.json` from the recorded fixtures, offline                  |
+| `npm run ingest`            | Fetches the live forecast into `.local/forecast.json` (about 388 Open-Meteo calls) |
 
-The CDK app in `infra/` is a separate package with its own `npm ci`, `npm test` and `npm run synth`.
+`npm start` serves `.local/forecast.json` as `/forecast.json`; see [backend/README.md](backend/README.md).
+
+Two more packages have their own `npm ci`: the forecast ingest in `backend/` (`npm test`,
+`npm run typecheck`) and the CDK app in `infra/` (`npm test`, `npm run synth`). The snapshot
+contract both the app and the backend use lives in `shared/` ([shared/README.md](shared/README.md)).
 
 ## Branches and commits
 

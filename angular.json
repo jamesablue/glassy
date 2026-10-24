@@ -76,6 +76,17 @@
               "baseHref": "/glassy/"
             },
             "development": {
+              "assets": [
+                {
+                  "glob": "**/*",
+                  "input": "public"
+                },
+                {
+                  "glob": "forecast.json",
+                  "input": ".local",
+                  "output": "/"
+                }
+              ],
               "optimization": false,
               "extractLicenses": false,
               "sourceMap": true
@@ -113,6 +124,9 @@
               "e2e/**/*.ts",
               "e2e/**/*.mts",
               "scripts/**/*.ts",
+              "backend/**/*.ts",
+              "backend/**/*.mts",
+              "shared/**/*.ts",
               "playwright.config.ts",
               "playwright.merge.config.ts"
             ]

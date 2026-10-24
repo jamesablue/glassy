@@ -31,6 +31,8 @@
     "e2e:visual:update": "bash scripts/e2e-visual.sh --update-snapshots",
     "fixtures:record": "tsx scripts/record-fixtures.ts",
     "fixtures:expected": "node scripts/generate-expected-scores.mjs",
+    "ingest": "tsx --tsconfig backend/tsconfig.json backend/src/cli.ts",
+    "snapshot:fixtures": "tsx --tsconfig backend/tsconfig.json backend/src/cli.ts --fixtures",
     "docs:screenshots": "ng build && tsx scripts/capture-screenshots.ts",
     "prepare": "husky"
   },

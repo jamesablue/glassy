@@ -1,0 +1,24 @@
+{
+  "name": "glassy-backend",
+  "version": "0.0.0",
+  "description": "The forecast ingest: fetches Open-Meteo and builds the forecast.json snapshot the app reads.",
+  "author": "James Blue",
+  "license": "MIT",
+  "private": true,
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "ingest": "tsx src/cli.ts",
+    "snapshot:fixtures": "tsx src/cli.ts --fixtures"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.2",
+    "tsx": "^4.23.15",
+    "typescript": "~6.0.2",
+    "vitest": "^5.0.5"
+  }
+}

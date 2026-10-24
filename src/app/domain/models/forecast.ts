@@ -1,3 +1,4 @@
+import type { SpotVariable } from '@glassy/shared';
 import type { GridSpec, VectorField } from './grid';
 
 /** Gridded scalar fields drawn as coloured map layers. */
@@ -41,29 +42,8 @@ export interface PointSample {
   readonly swellDirection: number;
 }
 
-/** Hourly forecast variables recorded for each spot. Units match `SpotHourSample`. */
-export const SPOT_VARIABLES = [
-  'swellHeight',
-  'swellPeriod',
-  'swellDirection',
-  'secondarySwellHeight',
-  'secondarySwellPeriod',
-  'secondarySwellDirection',
-  'windWaveHeight',
-  'windWavePeriod',
-  'windWaveDirection',
-  'seaSurfaceTemperature',
-  'currentSpeed',
-  'currentDirection',
-  'seaLevel',
-  'windSpeed',
-  'windDirection',
-  'windGust',
-  'rainChance',
-  'isDay',
-] as const;
-
-export type SpotVariable = (typeof SPOT_VARIABLES)[number];
+// The spot variables are part of the snapshot contract, so they live in shared/ at the root.
+export { SPOT_VARIABLES, type SpotVariable } from '@glassy/shared';
 
 /** Forecast values for every spot in a catalog, in catalog order. */
 export interface SpotForecast {
