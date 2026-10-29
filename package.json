@@ -33,6 +33,8 @@
     "fixtures:expected": "node scripts/generate-expected-scores.mjs",
     "ingest": "tsx --tsconfig backend/tsconfig.json backend/src/cli.ts",
     "snapshot:fixtures": "tsx --tsconfig backend/tsconfig.json backend/src/cli.ts --fixtures",
+    "backtest:buoys": "tsx scripts/buoy-backtest/main.ts",
+    "backtest:buoys:test": "tsx --test scripts/buoy-backtest/*.test.ts",
     "docs:screenshots": "ng build && tsx scripts/capture-screenshots.ts",
     "prepare": "husky"
   },
