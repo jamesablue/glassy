@@ -14,7 +14,7 @@ import { metricsByMethod, rows, type BuoyData, type GeometryShift } from './anal
 import { BUOYS, TODAY_DISTANCE_KM, UPSTREAM_DISTANCE_KM, pointOut } from './buoys';
 import { cached } from './cache';
 import { decide } from './metrics';
-import { parseSpec, specUrl } from './ndbc';
+import { isSpecFile, parseSpec, specUrl } from './ndbc';
 import { BACKTEST_MARINE_VARS, parseMarine, pastMarineUrl } from './open-meteo';
 import { renderReport, type SensitivityCase } from './report';
 
@@ -51,12 +51,15 @@ async function main(): Promise<void> {
     await cached(
       'manifest.json',
       async () => JSON.stringify({ fetchedAt: new Date().toISOString() }),
+      () => true,
       refresh,
     ),
   ) as { fetchedAt: string };
 
   const specs = await Promise.all(
-    BUOYS.map((buoy) => cached(`ndbc-${buoy.id}.spec`, () => fetchText(specUrl(buoy.id)), refresh)),
+    BUOYS.map((buoy) =>
+      cached(`ndbc-${buoy.id}.spec`, () => fetchText(specUrl(buoy.id)), isSpecFile, refresh),
+    ),
   );
 
   // One request for all twelve points: the buoys (A), then the upstream points (B), then today's.
@@ -72,6 +75,10 @@ async function main(): Promise<void> {
         'open-meteo-marine.json',
         async () =>
           JSON.stringify(await fetchOpenMeteo('backtest marine', url, DEFAULT_INGEST_SETTINGS)),
+        (text) => {
+          const parsed: unknown = JSON.parse(text);
+          return Array.isArray(parsed) && parsed.length === points.A.length * 3;
+        },
         refresh,
       ),
     ) as OpenMeteoResponse<(typeof BACKTEST_MARINE_VARS)[number]>,

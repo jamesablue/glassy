@@ -7,6 +7,11 @@ export function specUrl(buoyId: string): string {
   return `https://www.ndbc.noaa.gov/data/realtime2/${buoyId}.spec`;
 }
 
+/** Whether `text` looks like a `.spec` file: it starts with the column header the parser expects. */
+export function isSpecFile(text: string): boolean {
+  return /^#YY\s+MM\s+DD\s+hh\s+mm\s+WVHT\s+SwH\s+SwP\s+WWH\s+WWP\s+SwD\b/.test(text);
+}
+
 /** One hour of buoy readings. A missing value (`MM`) is `NaN`. */
 export interface BuoyHour {
   /** The hour the reading is closest to, Unix seconds (UTC). */

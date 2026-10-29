@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { compassToDegrees, parseSpec } from './ndbc';
+import { compassToDegrees, isSpecFile, parseSpec } from './ndbc';
 
 // An excerpt of 51201.spec, newest first as NDBC writes it, with a missing swell row.
 const SPEC = `#YY  MM DD hh mm WVHT  SwH  SwP  WWH  WWP SwD WWD  STEEPNESS  APD MWD
@@ -59,5 +59,13 @@ describe('parseSpec', () => {
     assert.equal(at17?.waveHeight, 1.8);
     assert.ok(Number.isNaN(at17?.swellHeight));
     assert.ok(Number.isNaN(at17?.swellDirection));
+  });
+});
+
+describe('isSpecFile', () => {
+  it('accepts a .spec file and rejects anything else', () => {
+    assert.equal(isSpecFile(SPEC), true);
+    assert.equal(isSpecFile('<html><body>Service unavailable</body></html>'), false);
+    assert.equal(isSpecFile(''), false);
   });
 });
