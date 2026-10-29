@@ -12,18 +12,26 @@ const RANGE_LOW = 0.8;
 const RANGE_HIGH = 1.2;
 
 /**
+ * A surf-report range in whole feet for an estimate in feet, or `undefined` when it reads as flat.
+ * The range spans about 80% to 120% of the estimate, is at least 1 ft wide and always contains the
+ * estimate, so 1.16 ft reads 1–2 rather than 0–1. Anything from flat to 1 ft is 0–1.
+ */
+export function feetRange(feet: number): readonly [low: number, high: number] | undefined {
+  if (feet < FLAT_BELOW_FEET) return undefined;
+  if (feet < 1) return [0, 1];
+  const low = Math.max(1, Math.floor(feet * RANGE_LOW));
+  const high = Math.max(low + 1, Math.round(feet * RANGE_HIGH), Math.ceil(feet));
+  return [low, high];
+}
+
+/**
  * A surf-report style height range without the unit, for example "2–3" or "0.5–0.8", or "Flat".
- * Feet are whole numbers and the range is always at least 1 ft wide; metres keep one decimal.
- * Anything from flat to 1 ft reads "0–1".
+ * Feet follow {@link feetRange}; metres keep one decimal.
  */
 export function surfRange(meters: number, unit: HeightUnit): string {
   if (unit === 'ft') {
-    const feet = meters * FEET_PER_METER;
-    if (feet < FLAT_BELOW_FEET) return FLAT;
-    if (feet < 1) return '0–1';
-    const low = Math.floor(feet * RANGE_LOW);
-    const high = Math.max(low + 1, Math.round(feet * RANGE_HIGH));
-    return `${low}–${high}`;
+    const range = feetRange(meters * FEET_PER_METER);
+    return range ? `${range[0]}–${range[1]}` : FLAT;
   }
   if (meters < FLAT_BELOW_METERS) return FLAT;
   return `${(meters * RANGE_LOW).toFixed(1)}–${(meters * RANGE_HIGH).toFixed(1)}`;

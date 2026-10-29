@@ -82,6 +82,10 @@ each with a height (m), a peak period (s) and the direction it comes from (degre
 The forecast describes the sea offshore. The surf a snorkeler meets at the entry depends on how much
 of each wave train reaches the spot, how much it grows as it breaks, and how sheltered the spot is.
 
+The estimate is a **full-face** breaking height: from the trough in front of a breaking wave to its
+crest, the way Hawaii's county lifeguards report surf. Hawaiian-scale reports, which quote roughly
+half the face, read lower for the same waves.
+
 ### Exposure
 
 `exposure(direction, spot)` is the share (0 to 1) of a wave train that reaches the spot. With
@@ -123,8 +127,10 @@ as the root of the sum of squares, and shelter takes its share off the result:
 surf = √(s₁² + s₂² + s₃²) × (1 − shelter)        meters, where sᵢ = hᵢ · exposure(dᵢ) · periodFactor(Tᵢ)
 ```
 
-The app shows this estimate as a surf-report range of 80% to 120%, in whole feet (at least 1 ft
-wide) or tenths of a meter, and as "Flat" below 0.4 ft.
+The app shows this estimate as a surf-report range of about 80% to 120%, in whole feet or tenths of
+a meter, and as "Flat" below 0.4 ft. A range in feet is at least 1 ft wide and always contains the
+estimate: from 1 ft up its low end is at least 1, and its high end is at least the estimate rounded
+up. So 1.16 ft reads "1–2", not "0–1", and anything from 0.4 ft to 1 ft reads "0–1".
 
 ### Surf penalty
 
@@ -277,7 +283,8 @@ its About panel: check lifeguard postings and the water when you arrive.
   shown on the map but does not feed the score.
 - **Hand-set heuristics.** The penalty tables, the period factor, the wrap zone, the wind weights
   and each spot's facing, window and shelter were chosen by judgment and carried over from the
-  prototype unchanged. None of them has been calibrated against observations.
+  prototype unchanged. None of them has been calibrated against observations, though the surf
+  estimate is now checked against lifeguard reports (below).
 - **No tide effect.** Sea level (tide plus surge) is shown with its trend, but the score ignores
   it. On shallow reef flats a low tide can make an otherwise good spot unswimmable, and a high tide
   can let more surf over the reef.
@@ -288,9 +295,13 @@ its About panel: check lifeguard postings and the water when you arrive.
 
 ### How it could be validated
 
-- **Surf estimate against buoys and reports.** Compare the per-spot surf estimate with nearshore
-  wave buoys and with lifeguard and surf reports for the same hours, per shore and per season, to
-  see whether exposure and the period factor are biased.
+- **Surf estimate against buoys and reports.** Two backtests do this now.
+  [buoy-swell-backtest.md](buoy-swell-backtest.md) (#55) compares the model's waves with four NOAA
+  buoys. [lifeguard-surf-backtest.md](lifeguard-surf-backtest.md) (#58) compares the full-face
+  estimate and its displayed range with the NWS lifeguard reports for Mākaha and five test beaches,
+  per beach and by swell direction. Rerun it (`npm run backtest:lifeguards`) before and after a
+  change to the surf model or spot geometry. Neither yet covers a winter season or forecast lead
+  time.
 - **Score against observed sessions.** Log real snorkel sessions (visibility, chop, surf at the
   entry, an overall 1 to 5 rating) together with the forecast the app showed. A rank correlation
   between score and rating, per spot, would show whether the ranking is useful. With enough data

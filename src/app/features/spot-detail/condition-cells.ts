@@ -59,7 +59,7 @@ export function conditionCells(conditions: Conditions, units: UnitSettings): Con
   const { sample } = conditions;
   return [
     cell('Surf at spot', [plain(surfText(conditions.surf, units.height))], {
-      detail: 'estimated breaking height',
+      detail: 'estimated full-face breaking height',
     }),
     windCell(conditions, units),
     ...conditions.components.map((component) => waveCell(component, units.height)),

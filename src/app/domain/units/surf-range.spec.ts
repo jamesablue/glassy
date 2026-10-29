@@ -13,13 +13,31 @@ describe('surfRange', () => {
     });
 
     it.each([
-      [0.305, '0–1'],
+      [0.305, '1–2'],
       [0.6, '1–2'],
       [1, '2–4'],
       [2, '5–8'],
       [3, '7–12'],
     ])('quotes %s m as %s', (meters, range) => {
       expect(surfRange(meters, 'ft')).toBe(range);
+    });
+
+    it('quotes 1.16 ft as "1–2", not "0–1" (#58)', () => {
+      expect(surfRange(1.16 / 3.28084, 'ft')).toBe('1–2');
+    });
+
+    it('stretches the top of the range to cover the estimate', () => {
+      expect(surfRange(2.05 / 3.28084, 'ft')).toBe('1–3');
+    });
+
+    it('always contains the estimate', () => {
+      for (let feet = 0.4; feet < 40; feet += 0.01) {
+        const [low = NaN, high = NaN] = surfRange(feet / 3.28084, 'ft')
+          .split('–')
+          .map(Number);
+        expect(low).toBeLessThanOrEqual(feet + 1e-9);
+        expect(high).toBeGreaterThanOrEqual(feet - 1e-9);
+      }
     });
 
     it('always quotes whole feet at least 1 ft apart', () => {
