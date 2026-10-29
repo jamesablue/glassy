@@ -5,7 +5,7 @@ import { isValue } from './is-value';
 
 /**
  * Surf height in metres as a surf-report range with its unit: `{{ 1 | surfRange: 'ft' }}` →
- * "2–4 ft", or "Flat". A missing value reads "—".
+ * "3–4 ft", or "Flat". A missing value reads "—".
  */
 @Pipe({ name: 'surfRange' })
 export class SurfRangePipe implements PipeTransform {

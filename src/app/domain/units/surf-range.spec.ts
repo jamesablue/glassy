@@ -15,9 +15,10 @@ describe('surfRange', () => {
     it.each([
       [0.305, '1–2'],
       [0.6, '1–2'],
-      [1, '2–4'],
-      [2, '5–8'],
-      [3, '7–12'],
+      [1, '3–4'],
+      [2, '6–8'],
+      [3, '9–11'],
+      [4, '10–16'],
     ])('quotes %s m as %s', (meters, range) => {
       expect(surfRange(meters, 'ft')).toBe(range);
     });
@@ -26,8 +27,25 @@ describe('surfRange', () => {
       expect(surfRange(1.16 / 3.28084, 'ft')).toBe('1–2');
     });
 
-    it('stretches the top of the range to cover the estimate', () => {
-      expect(surfRange(2.05 / 3.28084, 'ft')).toBe('1–3');
+    it.each([
+      [1.0, '1–2'],
+      [2.31, '2–3'],
+      [3.99, '3–4'],
+    ])('quotes small surf (%s ft) in 1 ft ranges, as lifeguards do', (feet, range) => {
+      expect(surfRange(feet / 3.28084, 'ft')).toBe(range);
+    });
+
+    it.each([
+      [4.0, '3–5'],
+      [5.7, '5–7'],
+      [11.9, '11–13'],
+    ])('quotes bigger surf (%s ft) in 2 ft ranges', (feet, range) => {
+      expect(surfRange(feet / 3.28084, 'ft')).toBe(range);
+    });
+
+    it('quotes big surf as 80% to 120% from 12 ft', () => {
+      expect(surfRange(12 / 3.28084, 'ft')).toBe('9–15');
+      expect(surfRange(20 / 3.28084, 'ft')).toBe('16–24');
     });
 
     it('always contains the estimate', () => {
@@ -70,7 +88,7 @@ describe('surfRange', () => {
 
 describe('surfText', () => {
   it('adds the unit to a range', () => {
-    expect(surfText(1, 'ft')).toBe('2–4 ft');
+    expect(surfText(1, 'ft')).toBe('3–4 ft');
     expect(surfText(1, 'm')).toBe('0.8–1.2 m');
   });
 

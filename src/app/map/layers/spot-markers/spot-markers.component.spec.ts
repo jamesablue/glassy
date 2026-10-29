@@ -115,7 +115,7 @@ describe('SpotMarkersComponent', () => {
 
     const after = pinButton('Hanauma Bay');
     expect(after).toBe(before);
-    expect(after.querySelector('.surf')?.textContent).toBe('5–8 ft');
+    expect(after.querySelector('.surf')?.textContent).toBe('6–8 ft');
   });
 
   it('adds and removes pins as the list changes', async () => {

@@ -127,10 +127,18 @@ as the root of the sum of squares, and shelter takes its share off the result:
 surf = √(s₁² + s₂² + s₃²) × (1 − shelter)        meters, where sᵢ = hᵢ · exposure(dᵢ) · periodFactor(Tᵢ)
 ```
 
-The app shows this estimate as a surf-report range of about 80% to 120%, in whole feet or tenths of
-a meter, and as "Flat" below 0.4 ft. A range in feet is at least 1 ft wide and always contains the
-estimate: from 1 ft up its low end is at least 1, and its high end is at least the estimate rounded
-up. So 1.16 ft reads "1–2", not "0–1", and anything from 0.4 ft to 1 ft reads "0–1".
+The app shows this estimate as a surf-report range, and as "Flat" below 0.4 ft. In feet the range's
+width follows Oahu's lifeguard reports, which quote small surf in 1 ft ranges and bigger surf in
+2 ft ranges, and it always contains the estimate:
+
+| Estimate     | Range                                     | Example         |
+| ------------ | ----------------------------------------- | --------------- |
+| 0.4 to 1 ft  | 0–1                                       | 0.7 ft → "0–1"  |
+| 1 to 4 ft    | 1 ft wide, from the estimate rounded down | 2.31 ft → "2–3" |
+| 4 to 12 ft   | 2 ft wide, centered on the estimate       | 5.7 ft → "5–7"  |
+| 12 ft and up | 80% to 120% of the estimate               | 20 ft → "16–24" |
+
+In meters it spans 80% to 120% of the estimate, in tenths.
 
 ### Surf penalty
 

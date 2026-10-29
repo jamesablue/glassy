@@ -52,7 +52,7 @@ describe('HazardNoticeComponent', () => {
     const element = await render(atThresholds);
     expect(element.querySelector('.warn')?.getAttribute('role')).toBe('note');
     expect(messages(element)).toEqual([
-      'Surf around 2–4 ft here. Getting in and out over the reef can be dangerous.',
+      'Surf around 3–4 ft here. Getting in and out over the reef can be dangerous.',
       'Strong onshore wind: expect chop and poor visibility.',
       'Current near 1.0 kt offshore. Stay close to shore.',
     ]);
