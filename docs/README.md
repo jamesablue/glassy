@@ -1,13 +1,14 @@
 # Glassy documentation
 
-| Document                             | What it covers                                                                                             |
-| ------------------------------------ | ---------------------------------------------------------------------------------------------------------- |
-| [architecture.md](architecture.md)   | System context, layers and their dependency rules, component tree, startup, hour changes, state, rendering |
-| [scoring-model.md](scoring-model.md) | The snorkel score: exposure, period factor, shelter, penalties, ratings, hazards, a worked example, limits |
-| [testing.md](testing.md)             | Test levels, coverage floors, the golden test, fixtures, accessibility, visual regression, CI              |
-| [deployment.md](deployment.md)       | GitHub Pages and AWS S3 + CloudFront runbooks                                                              |
-| [adr/](adr/README.md)                | Architecture decision records                                                                              |
-| [images/](images/)                   | README screenshots, taken by `npm run docs:screenshots`                                                    |
+| Document                                         | What it covers                                                                                             |
+| ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------- |
+| [architecture.md](architecture.md)               | System context, layers and their dependency rules, component tree, startup, hour changes, state, rendering |
+| [scoring-model.md](scoring-model.md)             | The snorkel score: exposure, period factor, shelter, penalties, ratings, hazards, a worked example, limits |
+| [testing.md](testing.md)                         | Test levels, coverage floors, the golden test, fixtures, accessibility, visual regression, CI              |
+| [deployment.md](deployment.md)                   | GitHub Pages and AWS S3 + CloudFront runbooks                                                              |
+| [buoy-swell-backtest.md](buoy-swell-backtest.md) | Open-Meteo waves against four NOAA buoys: where to read the model and who blocks the swell (#55)           |
+| [adr/](adr/README.md)                            | Architecture decision records                                                                              |
+| [images/](images/)                               | README screenshots, taken by `npm run docs:screenshots`                                                    |
 
 Elsewhere in the repository:
 
