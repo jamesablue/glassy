@@ -134,7 +134,7 @@ describe('trendValueText', () => {
   const nine = { ...hour, hour: 9, time: MIDNIGHT + 9 * 3600 };
 
   it('reads out an hour: when, the score and its rating, and the surf', () => {
-    expect(trendValueText(nine, 'ft')).toBe('Sun 9 AM: score 7.4, Good; surf 2–4 ft');
+    expect(trendValueText(nine, 'ft')).toBe('Sun 9 AM: score 7.4, Good; surf 3–4 ft');
     expect(trendValueText(nine, 'm')).toMatch(/; surf .+ m$/);
   });
 

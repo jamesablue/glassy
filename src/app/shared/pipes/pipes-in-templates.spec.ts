@@ -53,7 +53,7 @@ describe('the unit pipes in a template', () => {
       temperature: '79°F',
       depth: '28 ft',
       compass: 'E',
-      surf: '2–4 ft',
+      surf: '3–4 ft',
       time: 'Sun 18',
     });
 

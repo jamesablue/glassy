@@ -29,7 +29,7 @@ export type AssessedWaveComponent = MissingWaveComponent | ExposedWaveComponent;
 export interface Conditions {
   /** Snorkel score from 0 (stay out) to 10 (glassy). */
   readonly score: number;
-  /** Estimated breaking surf height at the spot, metres. */
+  /** Estimated full-face breaking surf height at the spot, metres. */
   readonly surf: number;
   readonly components: readonly [
     AssessedWaveComponent,

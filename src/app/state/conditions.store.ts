@@ -42,7 +42,7 @@ export interface SpotPin {
   readonly score: number;
   /** The rating's badge colour, CSS hex. */
   readonly color: string;
-  /** Estimated breaking surf at the spot, metres. */
+  /** Estimated full-face breaking surf at the spot, metres. */
   readonly surf: number;
   readonly selected: boolean;
 }
@@ -53,7 +53,7 @@ export interface ScoreTrendPoint {
   /** Start of the hour, Unix seconds. */
   readonly time: number;
   readonly score: number;
-  /** Estimated breaking surf at the spot, metres. */
+  /** Estimated full-face breaking surf at the spot, metres. */
   readonly surf: number;
   readonly isDay: boolean;
 }

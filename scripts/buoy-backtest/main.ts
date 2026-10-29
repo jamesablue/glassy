@@ -12,7 +12,7 @@ import type { OpenMeteoResponse } from '../../backend/src/open-meteo/types';
 import { DEFAULT_INGEST_SETTINGS } from '../../backend/src/ingest/settings';
 import { metricsByMethod, rows, type BuoyData, type GeometryShift } from './analysis';
 import { BUOYS, TODAY_DISTANCE_KM, UPSTREAM_DISTANCE_KM, pointOut } from './buoys';
-import { cached } from './cache';
+import { cacheDir, cached } from '../lib/cache';
 import { decide } from './metrics';
 import { isSpecFile, parseSpec, specUrl } from './ndbc';
 import { BACKTEST_MARINE_VARS, parseMarine, pastMarineUrl } from './open-meteo';
@@ -20,6 +20,7 @@ import { renderReport, type SensitivityCase } from './report';
 
 const REPORT = new URL('../../docs/buoy-swell-backtest.md', import.meta.url);
 const USER_AGENT = 'Glassy buoy backtest (https://github.com/jamesablue/glassy)';
+const CACHE = cacheDir('buoy-backtest');
 
 const SHIFTS: readonly (GeometryShift & { readonly label: string })[] = [
   { label: 'Window −20°', facing: 0, window: -20 },
@@ -49,6 +50,7 @@ async function main(): Promise<void> {
 
   const manifest = JSON.parse(
     await cached(
+      CACHE,
       'manifest.json',
       async () => JSON.stringify({ fetchedAt: new Date().toISOString() }),
       () => true,
@@ -58,7 +60,7 @@ async function main(): Promise<void> {
 
   const specs = await Promise.all(
     BUOYS.map((buoy) =>
-      cached(`ndbc-${buoy.id}.spec`, () => fetchText(specUrl(buoy.id)), isSpecFile, refresh),
+      cached(CACHE, `ndbc-${buoy.id}.spec`, () => fetchText(specUrl(buoy.id)), isSpecFile, refresh),
     ),
   );
 
@@ -72,6 +74,7 @@ async function main(): Promise<void> {
   const marine = parseMarine(
     JSON.parse(
       await cached(
+        CACHE,
         'open-meteo-marine.json',
         async () =>
           JSON.stringify(await fetchOpenMeteo('backtest marine', url, DEFAULT_INGEST_SETTINGS)),

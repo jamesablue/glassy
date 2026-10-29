@@ -18,25 +18,27 @@ you stage.
 
 ## Scripts
 
-| Script                        | What it does                                                                       |
-| ----------------------------- | ---------------------------------------------------------------------------------- |
-| `npm start`                   | Dev server                                                                         |
-| `npm run build`               | Production build, checked against the bundle budgets                               |
-| `npm test`                    | Unit and component tests (Vitest), single run                                      |
-| `npm run test:ci`             | The same with coverage, failing below each layer's floor                           |
-| `npm run lint`                | ESLint, including the layer import boundaries                                      |
-| `npm run typecheck`           | TypeScript for the app, unit tests, e2e tests and scripts                          |
-| `npm run format:check`        | Prettier check (`npm run format` fixes)                                            |
-| `npm run e2e`                 | Playwright end-to-end tests against the dev server                                 |
-| `npm run e2e:visual`          | Screenshot comparisons, in the Playwright Linux image (Docker)                     |
-| `npm run e2e:visual:update`   | Takes new screenshot baselines the same way                                        |
-| `npm run fixtures:record`     | Records the forecast fixtures again from the live APIs                             |
-| `npm run fixtures:expected`   | Scores the recorded fixtures with the original prototype's code                    |
-| `npm run docs:screenshots`    | Builds the app and captures the README images in `docs/images/`                    |
-| `npm run snapshot:fixtures`   | Builds `.local/forecast.json` from the recorded fixtures, offline                  |
-| `npm run ingest`              | Fetches the live forecast into `.local/forecast.json` (about 388 Open-Meteo calls) |
-| `npm run backtest:buoys`      | Backtests Open-Meteo waves against NOAA buoys into `docs/buoy-swell-backtest.md`   |
-| `npm run backtest:buoys:test` | Unit tests for the buoy backtest script (`node:test`, not in CI)                   |
+| Script                             | What it does                                                                                     |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `npm start`                        | Dev server                                                                                       |
+| `npm run build`                    | Production build, checked against the bundle budgets                                             |
+| `npm test`                         | Unit and component tests (Vitest), single run                                                    |
+| `npm run test:ci`                  | The same with coverage, failing below each layer's floor                                         |
+| `npm run lint`                     | ESLint, including the layer import boundaries                                                    |
+| `npm run typecheck`                | TypeScript for the app, unit tests, e2e tests and scripts                                        |
+| `npm run format:check`             | Prettier check (`npm run format` fixes)                                                          |
+| `npm run e2e`                      | Playwright end-to-end tests against the dev server                                               |
+| `npm run e2e:visual`               | Screenshot comparisons, in the Playwright Linux image (Docker)                                   |
+| `npm run e2e:visual:update`        | Takes new screenshot baselines the same way                                                      |
+| `npm run fixtures:record`          | Records the forecast fixtures again from the live APIs                                           |
+| `npm run fixtures:expected`        | Scores the recorded fixtures with the original prototype's code                                  |
+| `npm run docs:screenshots`         | Builds the app and captures the README images in `docs/images/`                                  |
+| `npm run snapshot:fixtures`        | Builds `.local/forecast.json` from the recorded fixtures, offline                                |
+| `npm run ingest`                   | Fetches the live forecast into `.local/forecast.json` (about 388 Open-Meteo calls)               |
+| `npm run backtest:buoys`           | Backtests Open-Meteo waves against NOAA buoys into `docs/buoy-swell-backtest.md`                 |
+| `npm run backtest:buoys:test`      | Unit tests for the buoy backtest script (`node:test`, not in CI)                                 |
+| `npm run backtest:lifeguards`      | Backtests the surf estimate against NWS lifeguard reports into `docs/lifeguard-surf-backtest.md` |
+| `npm run backtest:lifeguards:test` | Unit tests for the lifeguard backtest script (`node:test`, not in CI)                            |
 
 `npm start` serves `.local/forecast.json` as `/forecast.json`; see [backend/README.md](backend/README.md).
 

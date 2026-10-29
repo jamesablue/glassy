@@ -35,6 +35,8 @@
     "snapshot:fixtures": "tsx --tsconfig backend/tsconfig.json backend/src/cli.ts --fixtures",
     "backtest:buoys": "tsx scripts/buoy-backtest/main.ts",
     "backtest:buoys:test": "tsx --test scripts/buoy-backtest/*.test.ts",
+    "backtest:lifeguards": "tsx scripts/lifeguard-backtest/main.ts",
+    "backtest:lifeguards:test": "tsx --test scripts/lifeguard-backtest/*.test.ts",
     "docs:screenshots": "ng build && tsx scripts/capture-screenshots.ts",
     "prepare": "husky"
   },

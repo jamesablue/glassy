@@ -35,7 +35,7 @@ pure and update when the user's units change. A missing value (`NaN`, `null`, `u
 | `temperature` | `{{ 26 \| temperature: 'f' }}`   | `79°F`     |
 | `depth`       | `{{ 8.5 \| depth: 'ft' }}`       | `28 ft`    |
 | `compass`     | `{{ 100 \| compass }}`           | `E`        |
-| `surfRange`   | `{{ 1 \| surfRange: 'ft' }}`     | `2–4 ft`   |
+| `surfRange`   | `{{ 1 \| surfRange: 'ft' }}`     | `3–4 ft`   |
 | `hstTime`     | `{{ t \| hstTime }}`, `: 'hour'` | `Sun 3 PM` |
 
 Formatting itself lives in `domain/units` (and `domain/time`): the map may not import `shared/`, so

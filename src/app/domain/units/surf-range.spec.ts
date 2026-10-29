@@ -13,13 +13,49 @@ describe('surfRange', () => {
     });
 
     it.each([
-      [0.305, '0–1'],
+      [0.305, '1–2'],
       [0.6, '1–2'],
-      [1, '2–4'],
-      [2, '5–8'],
-      [3, '7–12'],
+      [1, '3–4'],
+      [2, '6–8'],
+      [3, '9–11'],
+      [4, '10–16'],
     ])('quotes %s m as %s', (meters, range) => {
       expect(surfRange(meters, 'ft')).toBe(range);
+    });
+
+    it('quotes 1.16 ft as "1–2", not "0–1" (#58)', () => {
+      expect(surfRange(1.16 / 3.28084, 'ft')).toBe('1–2');
+    });
+
+    it.each([
+      [1.0, '1–2'],
+      [2.31, '2–3'],
+      [3.99, '3–4'],
+    ])('quotes small surf (%s ft) in 1 ft ranges, as lifeguards do', (feet, range) => {
+      expect(surfRange(feet / 3.28084, 'ft')).toBe(range);
+    });
+
+    it.each([
+      [4.0, '3–5'],
+      [5.7, '5–7'],
+      [11.9, '11–13'],
+    ])('quotes bigger surf (%s ft) in 2 ft ranges', (feet, range) => {
+      expect(surfRange(feet / 3.28084, 'ft')).toBe(range);
+    });
+
+    it('quotes big surf as 80% to 120% from 12 ft', () => {
+      expect(surfRange(12 / 3.28084, 'ft')).toBe('9–15');
+      expect(surfRange(20 / 3.28084, 'ft')).toBe('16–24');
+    });
+
+    it('always contains the estimate', () => {
+      for (let feet = 0.4; feet < 40; feet += 0.01) {
+        const [low = NaN, high = NaN] = surfRange(feet / 3.28084, 'ft')
+          .split('–')
+          .map(Number);
+        expect(low).toBeLessThanOrEqual(feet + 1e-9);
+        expect(high).toBeGreaterThanOrEqual(feet - 1e-9);
+      }
     });
 
     it('always quotes whole feet at least 1 ft apart', () => {
@@ -52,7 +88,7 @@ describe('surfRange', () => {
 
 describe('surfText', () => {
   it('adds the unit to a range', () => {
-    expect(surfText(1, 'ft')).toBe('2–4 ft');
+    expect(surfText(1, 'ft')).toBe('3–4 ft');
     expect(surfText(1, 'm')).toBe('0.8–1.2 m');
   });
 
