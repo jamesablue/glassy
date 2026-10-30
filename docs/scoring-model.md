@@ -289,6 +289,11 @@ its About panel: check lifeguard postings and the water when you arrive.
 - **No reef-scale wave physics.** Exposure is a geometric rule (direction against a fixed facing and
   window), not refraction, shoaling or diffraction over the real bathymetry. The NOAA depth data is
   shown on the map but does not feed the score.
+- **Island shadowing counted twice.** The wave model already blocks swell around the island where
+  Glassy reads it, and `exposure()` blocks it again, so the trains read about 0.36 m low against
+  NOAA buoys. The period factor offsets this at the beach, where the estimate matches lifeguard
+  reports without bias. Both are left as they are until they are calibrated together (#60);
+  [ADR-0012](adr/0012-island-shadowing-and-exposure.md) has the numbers.
 - **Hand-set heuristics.** The penalty tables, the period factor, the wrap zone, the wind weights
   and each spot's facing, window and shelter were chosen by judgment and carried over from the
   prototype unchanged. None of them has been calibrated against observations, though the surf
