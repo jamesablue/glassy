@@ -29,7 +29,7 @@ backend/src/
     urls.ts               request URLs and variables; forecastCallCount (weighted API calls)
     client.ts             fetch with a per-attempt timeout and one retry on network errors and 5xx
     types.ts              raw response shapes
-  geo/offshore-point.ts   where each spot's marine values are read
+  geo/offshore-point.ts   where each spot's marine values are read (`samplingPoint`)
   testing/builders.ts     test builders
   testing/recorded-network.ts  a fake fetch that answers with the recorded responses
 ```

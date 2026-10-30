@@ -1,3 +1,5 @@
+import type { LatLon } from './grid';
+
 /**
  * The spot catalog: the spots the ingest forecasts and the app ranks, in the order every per-spot
  * series in a snapshot follows.
@@ -28,6 +30,13 @@ export interface Spot {
    * The scoring model uses 80° when it is omitted.
    */
   readonly window?: number;
+  /**
+   * Where the ingest reads this spot's marine values, in open water near it (wave models mask the
+   * coastal cells spots sit in as land). Without it, the point 6 km out along `facing` is used.
+   * Setting it keeps the sampling point, and so the catalog fingerprint, fixed while `facing` and
+   * `window` are retuned.
+   */
+  readonly sample?: LatLon;
   /** 0 = fully exposed, 1 = fully protected (fringing reef, breakwater, lagoon or bay). */
   readonly shelter: number;
   /** Rough skill needed on a normal day. */
@@ -46,6 +55,7 @@ export const OAHU_SPOTS = [
     lon: -158.063,
     facing: 300,
     window: 90,
+    sample: { lat: 21.6799, lon: -158.1132 },
     shelter: 0.15,
     level: 'Intermediate',
     notes:
@@ -59,6 +69,7 @@ export const OAHU_SPOTS = [
     lon: -158.0645,
     facing: 295,
     window: 90,
+    sample: { lat: 21.6703, lon: -158.1171 },
     shelter: 0.1,
     level: 'Intermediate',
     notes:
@@ -72,6 +83,7 @@ export const OAHU_SPOTS = [
     lon: -158.066,
     facing: 315,
     window: 90,
+    sample: { lat: 21.6801, lon: -158.107 },
     shelter: 0.05,
     level: 'Intermediate',
     notes:
@@ -85,6 +97,7 @@ export const OAHU_SPOTS = [
     lon: -158.086,
     facing: 320,
     window: 90,
+    sample: { lat: 21.6603, lon: -158.1233 },
     shelter: 0.2,
     level: 'Intermediate',
     notes: 'Green sea turtles feed and rest here. Stay at least 10 ft away. Rocky entry.',
@@ -97,6 +110,7 @@ export const OAHU_SPOTS = [
     lon: -158.194,
     facing: 355,
     window: 85,
+    sample: { lat: 21.6337, lon: -158.1991 },
     shelter: 0.2,
     level: 'Intermediate',
     notes:
@@ -110,6 +124,7 @@ export const OAHU_SPOTS = [
     lon: -157.9985,
     facing: 10,
     window: 80,
+    sample: { lat: 21.7596, lon: -157.9884 },
     shelter: 0.7,
     level: 'Beginner',
     notes:
@@ -125,6 +140,7 @@ export const OAHU_SPOTS = [
     lon: -157.936,
     facing: 75,
     window: 80,
+    sample: { lat: 21.6845, lon: -157.88 },
     shelter: 0.25,
     level: 'Intermediate',
     notes: 'Long beach facing Mokuauia (Goat Island). Trade-wind chop is common.',
@@ -137,6 +153,7 @@ export const OAHU_SPOTS = [
     lon: -157.874,
     facing: 45,
     window: 60,
+    sample: { lat: 21.5941, lon: -157.833 },
     shelter: 0.45,
     level: 'Beginner',
     notes: 'Deep, sheltered bay. Visibility drops after rain because of stream runoff.',
@@ -149,6 +166,7 @@ export const OAHU_SPOTS = [
     lon: -157.837,
     facing: 70,
     window: 70,
+    sample: { lat: 21.5344, lon: -157.7826 },
     shelter: 0.55,
     level: 'Beginner',
     notes: 'Shallow reef flats inside the north end of Kāneʻohe Bay, facing Chinaman’s Hat.',
@@ -161,6 +179,7 @@ export const OAHU_SPOTS = [
     lon: -157.815,
     facing: 45,
     window: 60,
+    sample: { lat: 21.4961, lon: -157.774 },
     shelter: 0.85,
     level: 'Beginner',
     notes:
@@ -174,6 +193,7 @@ export const OAHU_SPOTS = [
     lon: -157.728,
     facing: 75,
     window: 80,
+    sample: { lat: 21.4115, lon: -157.6721 },
     shelter: 0.3,
     level: 'Beginner',
     notes: 'Snorkel around Popoiʻa (Flat Island). Best in the morning before the trades fill in.',
@@ -186,6 +206,7 @@ export const OAHU_SPOTS = [
     lon: -157.715,
     facing: 85,
     window: 80,
+    sample: { lat: 21.3977, lon: -157.6573 },
     shelter: 0.4,
     level: 'Beginner',
     notes: 'Clear water over sand and reef patches facing the Mokulua islands. No lifeguards.',
@@ -198,6 +219,7 @@ export const OAHU_SPOTS = [
     lon: -157.696,
     facing: 70,
     window: 80,
+    sample: { lat: 21.3564, lon: -157.6416 },
     shelter: 0.2,
     level: 'Intermediate',
     notes: 'Mostly sand bottom; reef patches at the ends. Exposed to trades and shorebreak.',
@@ -210,6 +232,7 @@ export const OAHU_SPOTS = [
     lon: -157.662,
     facing: 80,
     window: 70,
+    sample: { lat: 21.3194, lon: -157.605 },
     shelter: 0.5,
     level: 'Beginner',
     notes: 'Small reef-protected coves near Makapuʻu. Good fish life when trades are light.',
@@ -224,6 +247,7 @@ export const OAHU_SPOTS = [
     lon: -157.694,
     facing: 140,
     window: 55,
+    sample: { lat: 21.228, lon: -157.6568 },
     shelter: 0.55,
     level: 'Beginner',
     notes:
@@ -237,6 +261,7 @@ export const OAHU_SPOTS = [
     lon: -157.7105,
     facing: 185,
     window: 80,
+    sample: { lat: 21.208, lon: -157.7155 },
     shelter: 0,
     level: 'Advanced',
     notes:
@@ -250,6 +275,7 @@ export const OAHU_SPOTS = [
     lon: -157.7731,
     facing: 170,
     window: 80,
+    sample: { lat: 21.2168, lon: -157.7631 },
     shelter: 0.45,
     level: 'Beginner',
     notes: 'Shallow reef flat with patches of coral. Best at higher tide.',
@@ -262,6 +288,7 @@ export const OAHU_SPOTS = [
     lon: -157.8045,
     facing: 190,
     window: 85,
+    sample: { lat: 21.2022, lon: -157.8145 },
     shelter: 0.1,
     level: 'Intermediate',
     notes: 'Reef below the lighthouse. Exposed to south swells and long swims out from the beach.',
@@ -274,6 +301,7 @@ export const OAHU_SPOTS = [
     lon: -157.8238,
     facing: 215,
     window: 80,
+    sample: { lat: 21.2238, lon: -157.857 },
     shelter: 0.35,
     level: 'Beginner',
     notes:
@@ -287,6 +315,7 @@ export const OAHU_SPOTS = [
     lon: -157.849,
     facing: 190,
     window: 60,
+    sample: { lat: 21.2315, lon: -157.859 },
     shelter: 0.85,
     level: 'Beginner',
     notes:
@@ -302,6 +331,7 @@ export const OAHU_SPOTS = [
     lon: -158.1236,
     facing: 230,
     window: 60,
+    sample: { lat: 21.2983, lon: -158.1679 },
     shelter: 0.8,
     level: 'Beginner',
     notes: 'Four man-made lagoons protected by rock walls. Fish gather along the openings.',
@@ -314,6 +344,7 @@ export const OAHU_SPOTS = [
     lon: -158.1312,
     facing: 260,
     window: 85,
+    sample: { lat: 21.3459, lon: -158.1882 },
     shelter: 0,
     level: 'Intermediate',
     notes:
@@ -327,6 +358,7 @@ export const OAHU_SPOTS = [
     lon: -158.1888,
     facing: 245,
     window: 70,
+    sample: { lat: 21.4203, lon: -158.2413 },
     shelter: 0.7,
     level: 'Beginner',
     notes: 'Calm bay protected by a breakwater. Visibility is best near the rock wall.',
@@ -339,6 +371,7 @@ export const OAHU_SPOTS = [
     lon: -158.2203,
     facing: 270,
     window: 85,
+    sample: { lat: 21.476, lon: -158.2782 },
     shelter: 0.05,
     level: 'Intermediate',
     notes: 'Turtles and lava formations. Exposed to winter west swells and shorebreak.',
@@ -351,6 +384,7 @@ export const OAHU_SPOTS = [
     lon: -158.2323,
     facing: 265,
     window: 85,
+    sample: { lat: 21.5252, lon: -158.29 },
     shelter: 0.05,
     level: 'Intermediate',
     notes:

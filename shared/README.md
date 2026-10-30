@@ -21,10 +21,9 @@ imports them from `domain/` as before. Scoring and everything else stays in the 
 - **Plain TypeScript.** No packages, no `node:` modules, no browser APIs, and no imports from the
   app or `backend/`. The folder is flat and may only import `./` files, which ESLint enforces.
 - **Changing the format** means bumping `SNAPSHOT_FORMAT_VERSION`, and shipping an app that accepts
-  both versions before deploying a backend that writes the new one. Version 1 is provisional until
-  #38 publishes it in production, and may still change in place until then.
+  both versions before deploying a backend that writes the new one.
 
-## The format (version 1)
+## The format (version 2)
 
 One JSON object: `formatVersion`, `fetchedAt` (ISO 8601), `source` (Open-Meteo, CC BY 4.0, and that
 the data was modified), `catalogFingerprint`, `times` (Unix seconds), `spots.ids` and
@@ -44,6 +43,12 @@ the data was modified), `catalogFingerprint`, `times` (Unix seconds), `spots.ids
 `decodeSeries(series, locationCount)` gives back an hour-major `Float32Array` (index =
 `hour * locationCount + location`, `NaN` for missing), the layout the app works in. The values are
 exactly the ones Open-Meteo sent. A five-day snapshot is about 550 kB, and about 100 kB compressed.
+
+The catalog fingerprint hashes each spot's id, position and `sample` point (where its marine values
+are read), in catalog order. A spot's `facing` and `window` aren't part of it, so they can be
+retuned without the app refusing existing snapshots. Version 2 differs from version 1 only there:
+version 1 hashed `facing` instead (`catalogFingerprintV1`). `parseSnapshot` reads both, each
+checked against its own fingerprint, until every ingest writes version 2.
 
 `parseSnapshot` refuses a snapshot with an unknown version, for another catalog or grid, or with
 missing fields, or series of the wrong length or holding anything but whole numbers, and says which
