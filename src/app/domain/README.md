@@ -13,7 +13,7 @@ Pure TypeScript: the snorkel scoring model and everything it needs.
 - `color/` and `bathymetry/`: palettes, colour lookup tables, layer catalog, depth classes, and WCAG contrast
   (`contrastRatio`, and `inkFor`, which picks black or white text for a fill or a stretch of gradient)
 - `legend/`: legend ticks and the legend for a layer in the user's units
-- `units/`, `geo/`, `time/`: unit conversion and formatting, offshore points, label declutter, Hawaii time
+- `units/`, `geo/`, `time/`: unit conversion and formatting, offshore and sampling points, label declutter, Hawaii time
 - `spots/`: the Oahu spot catalog
 - `math/`: small numeric helpers shared by the folders above
 

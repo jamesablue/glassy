@@ -18,3 +18,11 @@ export function offshorePoint(spot: Spot, km = OFFSHORE_DISTANCE_KM): LatLon {
     lon: spot.lon + (km / kmPerDegreeLongitude) * Math.sin(bearing),
   };
 }
+
+/**
+ * Where marine values are read for a spot: its own `sample` point when the catalog sets one, else
+ * the point `km` out along its facing ({@link offshorePoint}).
+ */
+export function samplingPoint(spot: Spot, km = OFFSHORE_DISTANCE_KM): LatLon {
+  return spot.sample ?? offshorePoint(spot, km);
+}

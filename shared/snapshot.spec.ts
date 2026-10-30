@@ -1,4 +1,4 @@
-import { catalogFingerprint } from './catalog-fingerprint';
+import { catalogFingerprint, catalogFingerprintV1 } from './catalog-fingerprint';
 import type { GridSpec } from './grid';
 import { encodeSeries, type EncodedSeries } from './series-codec';
 import {
@@ -74,12 +74,37 @@ describe('parseSnapshot', () => {
     expect(parseSnapshot(json, expected)).toEqual(snapshot());
   });
 
-  it.each([2, 0, '1', undefined])('refuses format version %j', (version) => {
+  it('writes format version 2', () => {
+    expect(SNAPSHOT_FORMAT_VERSION).toBe(2);
+  });
+
+  it('accepts a version 1 snapshot carrying the version 1 fingerprint', () => {
+    const json = changed((json) => {
+      json['formatVersion'] = 1;
+      json['catalogFingerprint'] = catalogFingerprintV1(spots);
+    });
+    expect(parseSnapshot(json, expected).formatVersion).toBe(1);
+  });
+
+  it.each([
+    ['a version 1 snapshot with the version 2 fingerprint', 1, catalogFingerprint],
+    ['a version 2 snapshot with the version 1 fingerprint', 2, catalogFingerprintV1],
+  ])('refuses %s', (_, version, fingerprint) => {
+    // The two fingerprints differ for these spots, since both set a sample point.
+    expect(catalogFingerprintV1(spots)).not.toBe(catalogFingerprint(spots));
+    const json = changed((json) => {
+      json['formatVersion'] = version;
+      json['catalogFingerprint'] = fingerprint(spots);
+    });
+    expect(codeOf(json)).toBe('catalog-mismatch');
+  });
+
+  it.each([3, 0, '2', undefined])('refuses format version %j', (version) => {
     expect(codeOf(changed((json) => (json['formatVersion'] = version)))).toBe('unknown-version');
   });
 
   it('reports a newer version as such, even though its fields differ', () => {
-    expect(codeOf({ formatVersion: 2, somethingElse: true })).toBe('unknown-version');
+    expect(codeOf({ formatVersion: 3, somethingElse: true })).toBe('unknown-version');
   });
 
   it.each([

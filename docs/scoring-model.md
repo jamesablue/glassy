@@ -68,8 +68,10 @@ Each spot in `domain/spots/oahu.spots.ts` carries three numbers that describe it
 `sampleSpot()` reads one `SpotHourSample` per spot and hour from the packed forecast:
 
 - **Marine values** (three wave trains, current, sea temperature, sea level) come from the
-  Open-Meteo Marine API at a point 6 km out to sea along the spot's `facing` (`offshorePoint`),
-  with `cell_selection=sea`, because wave models mask the coastal cells the spots sit in as land.
+  Open-Meteo Marine API at the spot's `sample` point in the catalog (`samplingPoint`), with
+  `cell_selection=sea`, because wave models mask the coastal cells the spots sit in as land. Every
+  catalog spot's `sample` started as the point 6 km out to sea along its `facing`
+  (`offshorePoint`), and is now fixed, so retuning `facing` or `window` doesn't move it (#63).
 - **Weather values** (wind speed and direction at 10 m, gusts, rain chance, daylight) come from
   the Open-Meteo Forecast API at the spot itself, with `cell_selection=nearest`.
 - A missing value is `NaN`. Each rule below says what it does with one.
@@ -284,7 +286,7 @@ The score is a decision aid for picking where to look, not a safety forecast. Th
 its About panel: check lifeguard postings and the water when you arrive.
 
 - **Model resolution.** The marine values come from global wave models whose cells are kilometers
-  across, read at the nearest sea cell to a point 6 km offshore. Conditions inside a small bay, or
+  across, read at the nearest sea cell to a point about 6 km offshore. Conditions inside a small bay, or
   on one side of a point, can differ a lot from that cell.
 - **No reef-scale wave physics.** Exposure is a geometric rule (direction against a fixed facing and
   window), not refraction, shoaling or diffraction over the real bathymetry. The NOAA depth data is

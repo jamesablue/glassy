@@ -1,4 +1,4 @@
-import { catalogFingerprint } from './catalog-fingerprint';
+import { catalogFingerprint, catalogFingerprintV1 } from './catalog-fingerprint';
 import { sameGrid, type GridSpec } from './grid';
 import { MAX_SERIES_DECIMALS, type EncodedSeries } from './series-codec';
 import type { Spot } from './spots';
@@ -8,10 +8,13 @@ import { GRID_VARIABLES, SPOT_VARIABLES, type GridVariable, type SpotVariable } 
  * The version of the snapshot format below. Changing the format means a new version, and an app
  * that accepts both versions ships before a backend that writes the new one (ADR-0010).
  *
- * Version 1 is provisional until the ingest publishes in production (#38), and may still change in
- * place until then.
+ * Version 2 changed only what `catalogFingerprint` hashes: each spot's sampling point instead of
+ * its `facing` (#63). The layout is the same as version 1, which {@link parseSnapshot} still reads.
  */
-export const SNAPSHOT_FORMAT_VERSION = 1;
+export const SNAPSHOT_FORMAT_VERSION = 2;
+
+/** The format versions {@link parseSnapshot} reads. */
+export type SnapshotFormatVersion = 1 | typeof SNAPSHOT_FORMAT_VERSION;
 
 /** Where a snapshot's data comes from, for the attribution its license asks for. */
 export interface SnapshotSource {
@@ -38,11 +41,14 @@ export const OPEN_METEO_SOURCE: SnapshotSource = {
  * run of hours per spot or grid cell. Decode one with `decodeSeries`.
  */
 export interface ForecastSnapshot {
-  readonly formatVersion: typeof SNAPSHOT_FORMAT_VERSION;
+  readonly formatVersion: SnapshotFormatVersion;
   /** When the ingest fetched the data, ISO 8601. */
   readonly fetchedAt: string;
   readonly source: SnapshotSource;
-  /** {@link catalogFingerprint} of the catalog the spot series were fetched for. */
+  /**
+   * {@link catalogFingerprint} of the catalog the spot series were fetched for
+   * ({@link catalogFingerprintV1} in version 1).
+   */
   readonly catalogFingerprint: string;
   /** Start of each hour, Unix seconds, ascending. */
   readonly times: readonly number[];
@@ -95,10 +101,11 @@ export interface SnapshotExpectations {
  */
 export function parseSnapshot(json: unknown, expected: SnapshotExpectations): ForecastSnapshot {
   if (!isRecord(json)) throw malformed('The snapshot is not a JSON object');
-  if (json['formatVersion'] !== SNAPSHOT_FORMAT_VERSION) {
+  const version = json['formatVersion'];
+  if (version !== 1 && version !== SNAPSHOT_FORMAT_VERSION) {
     throw new SnapshotError(
       'unknown-version',
-      `The snapshot has format version ${String(json['formatVersion'])}, not ${SNAPSHOT_FORMAT_VERSION}`,
+      `The snapshot has format version ${String(version)}, not 1 or ${SNAPSHOT_FORMAT_VERSION}`,
     );
   }
 
@@ -118,7 +125,8 @@ export function parseSnapshot(json: unknown, expected: SnapshotExpectations): Fo
   const ids = spots['ids'];
   const expectedIds = expected.spots.map((spot) => spot.id);
   if (
-    json['catalogFingerprint'] !== catalogFingerprint(expected.spots) ||
+    json['catalogFingerprint'] !==
+      (version === 1 ? catalogFingerprintV1 : catalogFingerprint)(expected.spots) ||
     ids.length !== expectedIds.length ||
     ids.some((id, index) => id !== expectedIds[index])
   ) {

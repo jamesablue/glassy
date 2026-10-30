@@ -1,5 +1,5 @@
 import type { GlassyConfig } from '../../core/glassy-config';
-import { offshorePoint } from '../../domain/geo';
+import { samplingPoint } from '../../domain/geo';
 import { gridCellCenters } from '../../domain/grid';
 import type { LatLon, Spot } from '../../domain/models';
 
@@ -137,7 +137,7 @@ export function forecastRequestUrls(
     }),
     spotMarine: buildOpenMeteoUrl(settings.openMeteoMarineUrl, {
       ...common,
-      points: spots.map((spot) => offshorePoint(spot, settings.offshoreDistanceKm)),
+      points: spots.map((spot) => samplingPoint(spot, settings.offshoreDistanceKm)),
       coordinateDecimals: 4,
       hourly: SPOT_MARINE_VARS,
       cellSelection: 'sea',

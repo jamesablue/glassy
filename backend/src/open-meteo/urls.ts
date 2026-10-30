@@ -1,5 +1,5 @@
 import { gridCellCenters, type GridSpec, type LatLon, type Spot } from '@glassy/shared';
-import { offshorePoint } from '../geo/offshore-point';
+import { samplingPoint } from '../geo/offshore-point';
 
 /** Sea state on the map grid: combined sea for the waves layer, primary swell for swell and period. */
 export const GRID_MARINE_VARS = [
@@ -106,7 +106,10 @@ export interface ForecastRequestSettings {
   readonly forecastDays: number;
   /** IANA time zone the hourly forecast is aligned to. */
   readonly timeZone: string;
-  /** How far out to sea marine values are read for each spot, km (see `offshorePoint`). */
+  /**
+   * How far out to sea marine values are read for a spot with no `sample` point, km (see
+   * `samplingPoint`).
+   */
   readonly offshoreDistanceKm: number;
 }
 
@@ -141,7 +144,7 @@ export function forecastRequestUrls(
     }),
     spotMarine: buildOpenMeteoUrl(settings.openMeteoMarineUrl, {
       ...common,
-      points: spots.map((spot) => offshorePoint(spot, settings.offshoreDistanceKm)),
+      points: spots.map((spot) => samplingPoint(spot, settings.offshoreDistanceKm)),
       coordinateDecimals: 4,
       hourly: SPOT_MARINE_VARS,
       cellSelection: 'sea',

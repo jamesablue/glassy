@@ -1,6 +1,6 @@
 import { OAHU_SPOTS, type LatLon } from '@glassy/shared';
 import { testSpot } from '../testing/builders';
-import { offshorePoint } from './offshore-point';
+import { offshorePoint, samplingPoint } from './offshore-point';
 
 /** Great-circle distance, km. */
 function haversineKm(a: LatLon, b: LatLon): number {
@@ -37,5 +37,25 @@ describe('offshorePoint', () => {
   it('accepts another distance', () => {
     const spot = testSpot({ facing: 225 });
     expect(haversineKm(spot, offshorePoint(spot, 2))).toBeCloseTo(2, 1);
+  });
+});
+
+describe('samplingPoint', () => {
+  it('uses the spot’s own sample point when it sets one, whatever its facing', () => {
+    const sample = { lat: 21.5, lon: -158.3 };
+    expect(samplingPoint(testSpot({ facing: 90, sample }))).toEqual(sample);
+    expect(samplingPoint(testSpot({ facing: 270, sample }), 2)).toEqual(sample);
+  });
+
+  it('falls back to the offshore point for a spot without one', () => {
+    const spot = testSpot({ facing: 225 });
+    expect(samplingPoint(spot, 2)).toEqual(offshorePoint(spot, 2));
+  });
+
+  it('is set for every catalog spot, in open water about 6 km out', () => {
+    for (const spot of OAHU_SPOTS) {
+      expect(spot.sample).toBeDefined();
+      expect(haversineKm(spot, samplingPoint(spot))).toBeCloseTo(6, 1);
+    }
   });
 });

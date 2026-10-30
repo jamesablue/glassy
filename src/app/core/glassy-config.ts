@@ -32,7 +32,10 @@ export interface GlassyConfig {
    * it, ms. The requests run in parallel, so this is also the longest a load waits on the network.
    */
   readonly forecastRequestTimeoutMs: number;
-  /** How far out to sea marine values are read for each spot, km (see `offshorePoint`). */
+  /**
+   * How far out to sea marine values are read for a spot with no `sample` point, km (see
+   * `samplingPoint`).
+   */
   readonly offshoreDistanceKm: number;
 }
 
